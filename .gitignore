@@ -1,0 +1,8 @@
+/auth-gate
+/auth-gate.exe
+coverage.txt
+
+.DS_Store
+.idea
+
+vendor/
