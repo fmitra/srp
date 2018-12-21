@@ -11,7 +11,13 @@ import (
 type User struct {
 	ID                  string
 	Username            string
-	Password            string
+	// A client-side generated ephemeral value derived from a password
+	// and used as a permanent server-side secret for calculating a shared
+	// key in SRP authentication.
+	Verifier            string
+	// A client-side generated salt used in SRP authentication.
+	Salt                string
+	// A secret value used to generate TOTP codes for two factor authentication.
 	TFASecret           string
 	// AuthenticationLevel defines a stage of authentication a User requires to be considered
 	// authenticated. It may be: password, totp, u2f
