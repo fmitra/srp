@@ -1,15 +1,14 @@
-// Pakcage SRP implements the Secure Remote Password Protocol (Version 6a)
-package srp
-
 /*
+Package srp implements the Secure Remote Password Protocol (Version 6a)
+
 SRP-6a is a password-authenticated key agreement (PAKE) protocol where a client/user
 demonstrates to a server that they know the password without sending the password
 or any other information from which a password can be inferred.
 
 The goal of SRP is for both client and server to generate the same session key (K),
-which they prove by generating a match hash (M). Matching value of M confirms the
-server and client are each aware of their long term secrets x (client secret) and
-v (server secret).
+which they prove by generating a matching hash (M). A matching value of M confirms
+the server and client are each aware of their long term secrets x (client secret)
+and v (server secret).
 
 RFC 2945: The SRP Authentication and Key Exchange System
 https://tools.ietf.org/html/rfc2945
@@ -30,12 +29,12 @@ S: Server authenticating the client
 
 Key
 
-N, g: Group parameters (prime and generator)
+N, g: Group parameters (a large prime N, and a primative root of N)
 I: An identifying username belonging to C
 p: A password belonging to C
 s: A salt belonging to C
 x: Private key derived from p and s; x = H(s|H(I|":"|p))
-k: A multiplier parameter derived by both C and S; in SRP-6, k = H(N, g)
+k: A multiplier parameter derived by both C and S; in SRP-6a, k = H(N, g)
 v: The password verifier belonging to S and derived from x; v = g^x
 a,A: Secret/Public ephemeral values belonging to C
 b,B: Secret/Public ephemeral values belonging to S
@@ -83,5 +82,8 @@ M1                --------->  Calculate K2, M2
                   <---------  M1
 Confirm M2 == M1
 */
+package srp
+
+// SRP provides the primary interface for this package.
 type SRP struct {
 }

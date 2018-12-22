@@ -9,16 +9,16 @@ import (
 // User represents a user who is either authenticated or unauthenticated
 // with the service.
 type User struct {
-	ID                  string
-	Username            string
+	ID       string
+	Username string
 	// A client-side generated ephemeral value derived from a password
 	// and used as a permanent server-side secret for calculating a shared
 	// key in SRP authentication.
-	Verifier            string
+	Verifier string
 	// A client-side generated salt used in SRP authentication.
-	Salt                string
+	Salt string
 	// A secret value used to generate TOTP codes for two factor authentication.
-	TFASecret           string
+	TFASecret string
 	// AuthenticationLevel defines a stage of authentication a User requires to be considered
 	// authenticated. It may be: password, totp, u2f
 	AuthenticationLevel string
@@ -42,14 +42,14 @@ type U2FKeyStorage interface {
 // UserStorage represents a local storage for Users.
 type UserStorage interface {
 	Create(ctx context.Context, user *User) error
-	Get(ctx contxt.Context, attribute string, value string) (*User, error)
+	Get(ctx context.Context, attribute string, value string) (*User, error)
 }
 
 // AuthService represents a service that handles validation of User credentials.
 type AuthService interface {
 	ValidatePassword(ctx context.Context, username string, password string) (bool, error)
 	ValidateTOTP(ctx context.Context, username string, totp string) (bool, error)
-	ValidateFIDO(ctx context.Context, username string, u2fSignRequest stirng) (bool, error)
+	ValidateFIDO(ctx context.Context, username string, u2fSignRequest string) (bool, error)
 }
 
 // LoginService represents an API to authenticate an existing User.
