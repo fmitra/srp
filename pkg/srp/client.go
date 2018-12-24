@@ -66,7 +66,7 @@ func (c *Client) LongTermSecret() (*big.Int, error) {
 }
 
 // Verifier returns the client's verifier value. A verifier is never persisted
-// by the client. It is stored by the SRP server in place as a password to serve
+// by the client. It is stored by the SRP server in place of a password to serve
 // as the Server's long term secret, V.
 // RFC 5054 2.5.3 Defines V as g^x % N
 func (c *Client) Verifier() (*big.Int, error) {
@@ -99,16 +99,74 @@ func (c *Client) EphemeralPublic() (*big.Int, error) {
 	return A, nil
 }
 
-// CalculateSessionKey creates a shared session key. RFC 5054 refers to this
-// value as K1 and K2 for client/server.
-func (c *Client) CalculateSessionKey() error {
-	// TODO
-	return nil
+// PremasterSecret creates the premaster secret key. If either client/server pair
+// fails to calculate the premaster secret, final messages will fail to decrypt.
+// RFC 5054 2.6 Defines the client secret as (B - (k * g^x))^(a + (u * x)) % N
+func (c *Client) PremasterSecret() (*big.Int, error) {
+	if c.G == nil || c.N == nil {
+		return nil, errors.New("srp.Group not initialized")
+	}
+
+	if c.EphemeralPublicKey == nil || c.EphemeralSharedKey == nil {
+		return nil, errors.New("shared keys A/B not calculated")
+	}
+
+	ownKey := big.Int{}
+	if ownKey.Mod(c.EphemeralPublicKey, c.N); ownKey.Sign() == 0 {
+		return nil, errors.New("generated invalid public key, key % N cannot be 0")
+	}
+
+	otherKey := big.Int{}
+	if otherKey.Mod(c.EphemeralSharedKey, c.N); otherKey.Sign() == 0 {
+		return nil, errors.New("received invalid public key, key % N cannot be 0")
+	}
+
+	if c.K == nil {
+		c.MultiplierParam()
+	}
+
+	if c.Secret == nil {
+		c.LongTermSecret()
+	}
+
+	c.scramblingParam()
+
+	t1 := &big.Int{}
+	t2 := &big.Int{}
+
+	// (a + (u * x))
+	t2.Mul(c.U, c.Secret)
+	t2.Add(t2, c.EphemeralPrivateKey)
+
+	// (B - (k * g^x))
+	t1.Exp(c.G, c.Secret, c.N)
+	t1.Mul(t1, c.K)
+	t1.Sub(c.EphemeralSharedKey, t1)
+	t1.Mod(t1, c.N)
+
+	k := &big.Int{}
+	k.Exp(t1, t2, c.N)
+	c.PremasterKey = k
+
+	return c.PremasterKey, nil
 }
 
-// CalculateProofOfKey creates hash to prove prior calculation of the shared
-// session key.
-func (c *Client) CalculateProofOfKey() error {
+// scramblingParam returns a scrambling paramter U.
+// RFC 5054 2.5.3 Defines U as SHA1(A | B)
+func (c *Client) scramblingParam() *big.Int {
+	h := c.H.New()
+	// EphemeralSharedKey is written first to match
+	// server order.
+	h.Write(c.EphemeralSharedKey.Bytes())
+	h.Write(c.EphemeralPublicKey.Bytes())
+
+	U := &big.Int{}
+	c.U = U.SetBytes(h.Sum(nil))
+	return c.U
+}
+
+// ProofOfKey creates hash to prove prior calculation of the premaster secret
+func (c *Client) ProofOfKey() error {
 	// TODO
 	return nil
 }

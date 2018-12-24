@@ -1,6 +1,6 @@
 # Auth Gate
 
-An stand alone authentication service for microservices.
+A stand alone authentication service for microservices.
 
 ### Further Reading
 

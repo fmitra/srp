@@ -51,58 +51,55 @@ func TestMultiplierParamRequiresInitializedSRP(t *testing.T) {
 	assert.EqualError(t, err, "hash not initialized")
 }
 
-func TestCreatesSramblingParameter(t *testing.T) {
-	srp := &SRP{
-		EphemeralSharedKey: big.NewInt(20),
-		EphemeralPublicKey: big.NewInt(22),
-		N:                  big.NewInt(3),
-		H:                  crypto.SHA256,
-	}
-	hex := "0x54260607e15ce9508bf0a39536d4870a7cb1b9f9da5221ea87fff02597be4bee"
-	sp, _ := new(big.Int).SetString(hex, 0)
+func TestServerClientCreatesMatchingScramblingParameter(t *testing.T) {
+	c, _ := NewDefaultClient("username", "password")
+	s, _ := NewDefaultServer()
 
-	U, err := srp.ScramblingParam()
-	assert.NoError(t, err)
-	assert.Equal(t, srp.U, U)
-	assert.Equal(t, srp.U, sp)
-}
+	c.Salt()
+	c.LongTermSecret()
+	v, _ := c.Verifier()
 
-func TestScramblingParamRequiresInitializedSRP(t *testing.T) {
-	srp := &SRP{}
-	_, err := srp.ScramblingParam()
-	assert.EqualError(t, err, "prime value not initialized")
+	// Client must provide verifier, salt, username to server
+	s.Secret = v
+	s.I = c.I
+	s.S = c.S
+	s.EphemeralPublic()
 
-	srp = &SRP{N: big.NewInt(2)}
-	_, err = srp.ScramblingParam()
-	assert.EqualError(t, err, "public keys A/B not initialized")
+	// Client and server must exchange ephemeral public keys
+	c.EphemeralSharedKey = s.EphemeralPublicKey
+	s.EphemeralSharedKey = c.EphemeralPublicKey
 
-	srp = &SRP{
-		EphemeralSharedKey: big.NewInt(20),
-		EphemeralPublicKey: big.NewInt(21),
-		N:                  big.NewInt(2),
-	}
-	_, err = srp.ScramblingParam()
-	assert.EqualError(t, err, "received invalid public key, key % N cannot be 0")
+	u1 := s.scramblingParam()
+	u2 := c.scramblingParam()
 
-	srp = &SRP{
-		EphemeralSharedKey: big.NewInt(20),
-		EphemeralPublicKey: big.NewInt(21),
-		N:                  big.NewInt(3),
-	}
-	_, err = srp.ScramblingParam()
-	assert.EqualError(t, err, "generated invalid public key, key % N cannot be 0")
-
-	srp = &SRP{
-		EphemeralSharedKey: big.NewInt(20),
-		EphemeralPublicKey: big.NewInt(21),
-		N:                  big.NewInt(6),
-	}
-	_, err = srp.ScramblingParam()
-	assert.EqualError(t, err, "hash not initialized")
+	assert.Equal(t, u1, u2)
 }
 
 func TestCreatesDefaultSRPWithSHA256(t *testing.T) {
 	srp, err := NewDefaultSRP()
 	assert.NoError(t, err)
 	assert.Equal(t, srp.H, crypto.SHA256)
+}
+
+func TestClientAndServerCalculatesMatchingKey(t *testing.T) {
+	c, _ := NewDefaultClient("username", "password")
+	s, _ := NewDefaultServer()
+
+	c.Salt()
+	c.LongTermSecret()
+	v, _ := c.Verifier()
+
+	// Client must provide verifier, salt, username to server
+	s.Secret = v
+	s.I = c.I
+	s.S = c.S
+	s.EphemeralPublic()
+
+	// Client and server must exchange ephemeral public keys
+	c.EphemeralSharedKey = s.EphemeralPublicKey
+	s.EphemeralSharedKey = c.EphemeralPublicKey
+
+	k1, _ := s.PremasterSecret()
+	k2, _ := c.PremasterSecret()
+	assert.Equal(t, k1, k2)
 }

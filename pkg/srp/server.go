@@ -35,22 +35,63 @@ func (s *Server) EphemeralPublic() (*big.Int, error) {
 	return B, nil
 }
 
-// CalculateSessionKey creates a shared session key. RFC 5054 refers to this
-// value as K1 and K2 for client/server.
-func (c *Server) CalculateSessionKey() error {
-	// TODO
-	return nil
+// PremasterSecret creates the premaster secret key. If either client/server pair
+// fails to calculate the premaster secret, final messages will fail to decrypt.
+// RFC 5054 2.6 Defines the server secret as (A * v^u) ^ b % N
+func (s *Server) PremasterSecret() (*big.Int, error) {
+	if s.G == nil || s.N == nil {
+		return nil, errors.New("srp.Group not initialized")
+	}
+
+	if s.EphemeralPublicKey == nil || s.EphemeralSharedKey == nil {
+		return nil, errors.New("shared keys A/B not calculated")
+	}
+
+	ownKey := big.Int{}
+	if ownKey.Mod(s.EphemeralPublicKey, s.N); ownKey.Sign() == 0 {
+		return nil, errors.New("generated invalid public key, key % N cannot be 0")
+	}
+
+	otherKey := big.Int{}
+	if otherKey.Mod(s.EphemeralSharedKey, s.N); otherKey.Sign() == 0 {
+		return nil, errors.New("received invalid public key, key % N cannot be 0")
+	}
+
+	s.scramblingParam()
+
+	// (A * v^u)
+	vU := &big.Int{}
+	vU.Exp(s.Secret, s.U, s.N)
+	vU.Mul(vU, s.EphemeralSharedKey)
+
+	// vU^b % N
+	k := &big.Int{}
+	k.Exp(vU, s.EphemeralPrivateKey, s.N)
+	s.PremasterKey = k
+
+	return s.PremasterKey, nil
 }
 
-// CalculateProofOfKey creates hash to prove prior calculation of the shared
-// session key.
-func (c *Server) CalculateProofOfKey() error {
+// scramblingParam returns a scrambling paramter U.
+// RFC 5054 2.5.3 Defines U as SHA1(A | B)
+func (s *Server) scramblingParam() *big.Int {
+	h := s.H.New()
+	h.Write(s.EphemeralPublicKey.Bytes())
+	h.Write(s.EphemeralSharedKey.Bytes())
+
+	U := &big.Int{}
+	s.U = U.SetBytes(h.Sum(nil))
+	return s.U
+}
+
+// ProofOfKey creates hash to prove prior calculation of the premaster secret
+func (s *Server) ProofOfKey() error {
 	// TODO
 	return nil
 }
 
 // ValidateProof validates a SRP Client's proof of session key.
-func (c *Server) ValidateProof() bool {
+func (s *Server) ValidateProof() bool {
 	// TODO
 	return true
 }

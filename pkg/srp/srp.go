@@ -61,11 +61,10 @@ Initial hash of shared public keys
 
 Calculation of keys
 
-1. S calculates K2 = H(((A * v^u) ^ b) % N)
-2. S calculates M2 = H(K, A, B, I, s, N, g)
-3. C calculates x = H(s|H(I|":"|p)) (Secret originally used during registration)
-4. C calculates K1 = H(((B - k (g^x)) ^ (a + ux)) % N)
-5. C calculates M1 = H(K, A, B, I, s,N, g)
+1. C calculates Premaster Secret PS = ((B - k (g^x)) ^ (a + ux)) % N
+2. S calculates Premaster Secret PS = ((A * v^u) ^ b) % N
+3. S calculates M1 = H(H(PS), A, B, I, s, N, g)
+4. C calculates M2 = H(H(PS), A, B, I, s, N, g)
 
 Confirmation of proof
 
@@ -99,10 +98,10 @@ import (
 type SRPCore interface {
 	EphemeralPrivate() *big.Int
 	EphemeralPublic() (*big.Int, error)
-	ScramblingParam() (*big.Int, error)
+	scramblingParam() *big.Int
 	MultiplerParam() (*big.Int, error)
-	CalculateSessionKey() error
-	CalculateProofOfKey() error
+	PremasterSecret() (*big.Int, error)
+	ProofOfKey() error
 	ValidateProof() bool
 }
 
@@ -146,7 +145,8 @@ type SRP struct {
 	S string
 	// Long term secret, RFC 5054 refers to this value as x
 	// for the client and v for the server.
-	Secret *big.Int
+	Secret       *big.Int
+	PremasterKey *big.Int
 	// Ephemeral private key, RFC 5054 refers to this value as
 	// a for the client and b for the server.
 	EphemeralPrivateKey *big.Int
@@ -194,40 +194,6 @@ func (s *SRP) MultiplierParam() (*big.Int, error) {
 	K := &big.Int{}
 	s.K = K.SetBytes(h.Sum(nil))
 	return s.K, nil
-}
-
-// ScramblingParam returns a scrambling paramter U.
-// RFC 5054 2.5.3 Defines U as SHA1(A | B)
-func (s *SRP) ScramblingParam() (*big.Int, error) {
-	if s.N == nil {
-		return nil, errors.New("prime value not initialized")
-	}
-
-	if s.EphemeralPublicKey == nil || s.EphemeralSharedKey == nil {
-		return nil, errors.New("public keys A/B not initialized")
-	}
-
-	ownKey := big.Int{}
-	if ownKey.Mod(s.EphemeralPublicKey, s.N); ownKey.Sign() == 0 {
-		return nil, errors.New("generated invalid public key, key % N cannot be 0")
-	}
-
-	otherKey := big.Int{}
-	if otherKey.Mod(s.EphemeralSharedKey, s.N); otherKey.Sign() == 0 {
-		return nil, errors.New("received invalid public key, key % N cannot be 0")
-	}
-
-	if s.H == crypto.Hash(0) {
-		return nil, errors.New("hash not initialized")
-	}
-
-	h := s.H.New()
-	h.Write(s.EphemeralPublicKey.Bytes())
-	h.Write(s.EphemeralSharedKey.Bytes())
-
-	U := &big.Int{}
-	s.U = U.SetBytes(h.Sum(nil))
-	return s.U, nil
 }
 
 // NewSRP returns an SRP environment with configurable hashing function

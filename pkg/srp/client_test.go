@@ -185,3 +185,56 @@ func TestCreatesDefaultClient(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, client.H, crypto.SHA256)
 }
+
+func TestClientCalculatesPremasterSecret(t *testing.T) {
+	c, _ := NewDefaultClient("username", "password")
+	c.EphemeralPrivateKey = big.NewInt(1234577890000000000)
+	c.EphemeralSharedKey = big.NewInt(1234599789000000000)
+	c.EphemeralPublicKey = big.NewInt(1234599788000000000)
+	c.S = "123459978900000022"
+	pHex := "0xac63795cddc845c660a2e65aff784be0173a1397f048b1f88046e37e5d3df" +
+		"f9150a990a1ed89b496e219f8fab0c27c873e2c6f96b3d6cdd0800c4554316b9c2e" +
+		"1e53c288a96bda1bf5651735f4580c9ef8129bed0344b1f78351852cadb3b12c09a" +
+		"ae1b182ec92311447ef8fefb38a8df8ed8d04ace455a31e1eef258b4194f34eaadd" +
+		"5b89b91f062c22648e8c4762682e4c159f97b56ec444310ed217fa2c592cfb40d33" +
+		"a8dc7c368c31e0713ae99b9afc6cb91997fd14a5c167aaff7930e9e52e4b170a8b5" +
+		"1e567d643f6847ee2fe59c4258735550dc6dfbe2ee0b65bdee2aab9c497b64ef899" +
+		"71a3e47c5c346834a7ce479e6000707dfd5677f5a566dc1c7fbc30e6a0cac6c730b" +
+		"fd84f85aa9421ec96072d2b25193c48e91fa573f7a02975b6eeb01b97b77eeb8599" +
+		"374ff174dabdae68cc5a8bc4640f9b5f50c979efb94b4ad9ebd8f743a2b0687ca1e" +
+		"b202a2cb1c60267c9970fa718ff1248e7149422a4ac877080c2d6d08b61523d823b" +
+		"38e551363f5517b88ac98f92c1ecba51d569b23fb652ed2038114ad983905c3b50d" +
+		"f89978938c807e225b5abe0669e8c1f87121dc9d8fbf9285f9a9e98102dea7dbea0" +
+		"c4e6deea15e5b4d4d5482a43653e61d299f07a28cdb5a640d6145c45db375cd4d10" +
+		"d88f0eedc12d21c7d1f5a65de3fb2f0a819dde954b820912038228bfb222ecb8c27" +
+		"46c0e1e47b6695077d3216bc2"
+	key, _ := new(big.Int).SetString(pHex, 0)
+	pms, err := c.PremasterSecret()
+	assert.NoError(t, err)
+	assert.Equal(t, pms, c.PremasterKey)
+	assert.Equal(t, pms, key)
+}
+
+func TestClientPremasterSecretRequiresInitializedServer(t *testing.T) {
+	c := &Client{}
+	_, err := c.PremasterSecret()
+	assert.EqualError(t, err, "srp.Group not initialized")
+
+	c, _ = NewDefaultClient("username", "password")
+	_, err = c.PremasterSecret()
+	assert.EqualError(t, err, "shared keys A/B not calculated")
+
+	c, _ = NewDefaultClient("username", "password")
+	c.EphemeralSharedKey = big.NewInt(20)
+	c.EphemeralPublicKey = big.NewInt(21)
+	c.N = big.NewInt(2)
+	_, err = c.PremasterSecret()
+	assert.EqualError(t, err, "received invalid public key, key % N cannot be 0")
+
+	c, _ = NewDefaultClient("username", "password")
+	c.EphemeralSharedKey = big.NewInt(20)
+	c.EphemeralPublicKey = big.NewInt(21)
+	c.N = big.NewInt(3)
+	_, err = c.PremasterSecret()
+	assert.EqualError(t, err, "generated invalid public key, key % N cannot be 0")
+}

@@ -47,3 +47,60 @@ func TestCreatesDefaultServer(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, server.H, crypto.SHA256)
 }
+
+func TestServerPremasterSecretRequiresInitializedServer(t *testing.T) {
+	server := &Server{}
+	_, err := server.PremasterSecret()
+	assert.EqualError(t, err, "srp.Group not initialized")
+
+	srp, _ := NewDefaultSRP()
+	server = &Server{SRP: *srp}
+	_, err = server.PremasterSecret()
+	assert.EqualError(t, err, "shared keys A/B not calculated")
+
+	server, _ = NewDefaultServer()
+	server.EphemeralSharedKey = big.NewInt(20)
+	server.EphemeralPublicKey = big.NewInt(21)
+	server.N = big.NewInt(2)
+	_, err = server.PremasterSecret()
+	assert.EqualError(t, err, "received invalid public key, key % N cannot be 0")
+
+	server, _ = NewDefaultServer()
+	server.EphemeralSharedKey = big.NewInt(20)
+	server.EphemeralPublicKey = big.NewInt(21)
+	server.N = big.NewInt(3)
+	_, err = server.PremasterSecret()
+	assert.EqualError(t, err, "generated invalid public key, key % N cannot be 0")
+}
+
+func TestServerCalculatesPremasterSecret(t *testing.T) {
+	srp, _ := NewDefaultSRP()
+	srp.Secret = big.NewInt(1234567789000000)
+	srp.EphemeralPrivateKey = big.NewInt(1234577890000000000)
+	server := &Server{SRP: *srp}
+
+	server.EphemeralPublic()
+	server.EphemeralSharedKey = big.NewInt(1234577890000000000)
+
+	pHex := "0x184c69c549a5b1b357631c996b214a329a3fabeabbef9565b345d63d9fd2d932" +
+		"659c8d3065af73aaa9dbc422063a2450fac3732eb5e3a033514c39ac23d3eec6ac041d" +
+		"28ef47323d9de3efa3027a8efa3e1d1a907ba9b5fbd3b828604b4875275289b7464c14" +
+		"5224f15e9b27996a9487c1f368df22833a547d8ba1155a8d443f93c1a84fe8519349f5" +
+		"c2cd719550cae7a7dc5d620f2da1087b615209a45decb3ad81b63248237e315329df94" +
+		"c30433747a93584a97c049a0b34bd11fff1ef003a96cbe8f1d167799ce83bf7fb6d952" +
+		"de72cf2aa22225a4ea1e6766f661a60d1274341e04c5b15e540f811533d90d8147dfb7" +
+		"14f9d8b275811fd8580975f21cb17a9263413815fb30e485d540dab67e607edf19cea8" +
+		"fe121280a4c816d7d043f6f23b627cd7f9b827fce61030f9d9ce840970d98b9e451a6b" +
+		"a279bbfa20be98a382d33c2f35d1a16cd62a8be54d562846e11f7ba257e9243cb9d935" +
+		"5da1644aa2fbccbd8e10c83cf739082e243aa8c7837fc0d5972df9c353df130383159d" +
+		"1e47627f9f69b2ca1945073f24bca68ab06929a802e1fc8e456123253ca2d2171df87b" +
+		"3246194954e840d9e7cd37d9f509bca496f79677f348750a35bb739ade38bcde410d54" +
+		"bc7572ebf113041d7e170396caa4348439822394bd1747a32ba896f04ca8684ec08f28" +
+		"84cffca95f2727532799d2d9f09c822f59c7ade49adc29d243"
+	key, _ := new(big.Int).SetString(pHex, 0)
+
+	pms, err := server.PremasterSecret()
+	assert.NoError(t, err)
+	assert.Equal(t, pms, server.PremasterKey)
+	assert.Equal(t, pms, key)
+}
