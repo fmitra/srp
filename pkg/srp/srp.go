@@ -20,6 +20,7 @@ Operations
 
 ^: Denotes exponentiation operation
 |: Denotes concatenation
+%: Denotes modulo operation
 H(): Hash Function (eg. SHA256)
 
 Roles
@@ -34,8 +35,9 @@ I: An identifying username belonging to C
 p: A password belonging to C
 s: A salt belonging to C
 x: Private key derived from p and s; x = H(s|H(I|":"|p))
-k: A multiplier parameter derived by both C and S; in SRP-6a, k = H(N, g)
-v: The password verifier belonging to S and derived from x; v = g^x
+k: A multiplier parameter derived by both C and S; k = H(N, g)
+u: A scrambling parameter derived by both C and S; u = H(A, B)
+v: The password verifier belonging to S and derived from x; v = g^x % N
 a,A: Secret/Public ephemeral values belonging to C
 b,B: Secret/Public ephemeral values belonging to S
 M: Calculated proof of key generation
@@ -43,7 +45,7 @@ K: Calculated shared key
 
 Scenario: Client (C) establishes a password with Server (S)
 
-1. C selects a password p, salt s and computes x = H(s|H(I|":"|p)), v = g^x
+1. C selects a password p, salt s and computes x = H(s|H(I|":"|p)), v = g^x % N
 2. C submits v (password verifier), s, I (username) to S
 3. S stores v and s, indexed by I
 
@@ -84,6 +86,182 @@ Confirm M2 == M1
 */
 package srp
 
-// SRP provides the primary interface for this package.
+import (
+	"crypto"
+	rand "crypto/rand"
+	"errors"
+	"fmt"
+	"math/big"
+)
+
+// SRPCore is the core interface SRP clients and servers
+// must implement.
+type SRPCore interface {
+	EphemeralPrivate() *big.Int
+	EphemeralPublic() (*big.Int, error)
+	ScramblingParam() (*big.Int, error)
+	MultiplerParam() (*big.Int, error)
+	CalculateSessionKey() error
+	CalculateProofOfKey() error
+	ValidateProof() bool
+}
+
+// SRPClient is an interface to support client related requests for
+// enrollment and authentication.
+type SRPClient interface {
+	SRPCore
+	LongTermSecret() (*big.Int, error)
+	Verifier() (*big.Int, error)
+	Salt() string
+	RequestEnrollment()
+	RequestAuthentication()
+}
+
+// SRPServer is an interface to support client request validation.
+type SRPServer interface {
+	SRPCore
+	ReceiveEnrollmentRequest()
+	ReceiveAuthenticationRequest()
+}
+
+// SRP represents the main parameters used in calculating a
+// server/client shared key.
+//
+// The srp/client and srp/server packages extend SRP from a client
+// and server use-case perspective.
 type SRP struct {
+	// N is a large prime, referred to in RFC 5054 as N.
+	N *big.Int
+	// G is a primative root of N, referred to in RFC 5054 as g.
+	G *big.Int
+	// K is a multiplier param, referred to in RFC 5054 as k.
+	K *big.Int
+	// U is a scrambling param, referred to in RFC 5054 as u.
+	U *big.Int
+	// H is a cryptographic hash. RFC 5054 defaults to SHA1.
+	H crypto.Hash
+	// I is a username, referred to in RFC 5054 as I.
+	I string
+	// S is a user's salt referred to in RFC 5054 as s.
+	S string
+	// Long term secret, RFC 5054 refers to this value as x
+	// for the client and v for the server.
+	Secret *big.Int
+	// Ephemeral private key, RFC 5054 refers to this value as
+	// a for the client and b for the server.
+	EphemeralPrivateKey *big.Int
+	// Ephemeral public key, RFC 5054 refers to this value as A
+	// for the client and B for the server.
+	EphemeralPublicKey *big.Int
+	// Ephemeral shared secret, it acompanies EphemeralPublicKey
+	// and together make up A/B.
+	EphemeralSharedKey *big.Int
+}
+
+// EphemeralPrivate returns RFC 5054 `a` or `b` (client/server ephemeral secret)
+// RFC 5054 2.5.3 recommends this number is 32 bytes or greater, so we default
+// to 64.
+func (s *SRP) EphemeralPrivate() *big.Int {
+	byteSize := 64
+	bytes := make([]byte, byteSize)
+	rand.Read(bytes)
+	ephemeralPrivateKey := &big.Int{}
+	ephemeralPrivateKey.SetBytes(bytes)
+	s.EphemeralPrivateKey = ephemeralPrivateKey
+	return s.EphemeralPrivateKey
+
+}
+
+// MultiplierParm returns a multipler paramenter K
+// RFC 5054 2.5.3 Defines K as SHA1(N | G)
+func (s *SRP) MultiplierParam() (*big.Int, error) {
+	if s.N == nil {
+		return nil, errors.New("prime value not initialized")
+	}
+
+	if s.G == nil {
+		return nil, errors.New("primative root not initialized")
+	}
+
+	if s.H == crypto.Hash(0) {
+		return nil, errors.New("hash not initialized")
+	}
+
+	h := s.H.New()
+	h.Write(s.N.Bytes())
+	h.Write(s.G.Bytes())
+
+	K := &big.Int{}
+	s.K = K.SetBytes(h.Sum(nil))
+	return s.K, nil
+}
+
+// ScramblingParam returns a scrambling paramter U.
+// RFC 5054 2.5.3 Defines U as SHA1(A | B)
+func (s *SRP) ScramblingParam() (*big.Int, error) {
+	if s.N == nil {
+		return nil, errors.New("prime value not initialized")
+	}
+
+	if s.EphemeralPublicKey == nil || s.EphemeralSharedKey == nil {
+		return nil, errors.New("public keys A/B not initialized")
+	}
+
+	ownKey := big.Int{}
+	if ownKey.Mod(s.EphemeralPublicKey, s.N); ownKey.Sign() == 0 {
+		return nil, errors.New("generated invalid public key, key % N cannot be 0")
+	}
+
+	otherKey := big.Int{}
+	if otherKey.Mod(s.EphemeralSharedKey, s.N); otherKey.Sign() == 0 {
+		return nil, errors.New("received invalid public key, key % N cannot be 0")
+	}
+
+	if s.H == crypto.Hash(0) {
+		return nil, errors.New("hash not initialized")
+	}
+
+	h := s.H.New()
+	h.Write(s.EphemeralPublicKey.Bytes())
+	h.Write(s.EphemeralSharedKey.Bytes())
+
+	U := &big.Int{}
+	s.U = U.SetBytes(h.Sum(nil))
+	return s.U, nil
+}
+
+// NewSRP returns an SRP environment with configurable hashing function
+// and group parameters.
+func NewSRP(h crypto.Hash, g *Group) (*SRP, error) {
+	N, err := g.CalcN()
+	if err != nil {
+		errMsg := fmt.Sprintf("invalid srp.Group provided %s", err)
+		return &SRP{}, errors.New(errMsg)
+	}
+
+	srp := &SRP{
+		H: h,
+		G: g.G,
+		N: N,
+	}
+
+	srp.EphemeralPrivate()
+
+	_, err = srp.MultiplierParam()
+	if err != nil {
+		return &SRP{}, err
+	}
+
+	return srp, nil
+}
+
+// NewDefaultSRP returns an SRP environment preconfigured for parameters
+// Group4096 and SHA256 for a hashing function.
+func NewDefaultSRP() (*SRP, error) {
+	g, _ := NewGroup(Group4096)
+	srp, err := NewSRP(crypto.SHA256, g)
+	if err != nil {
+		return &SRP{}, err
+	}
+	return srp, nil
 }

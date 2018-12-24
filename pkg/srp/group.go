@@ -7,14 +7,14 @@ import (
 )
 
 const (
-	// Group1024 is a generator and hexadecimal prime number.
+	// Group1024 is a primative root and hexadecimal prime number.
 	Group1024 = "2:0xEEAF0AB9ADB38DD69C33F80AFA8FC5E860726187" +
 		"75FF3C0B9EA2314C9C256576D674DF7496EA81D3383B4813D692" +
 		"C6E0E0D5D8E250B98BE48E495C1D6089DAD15DC7D7B46154D6B6" +
 		"CE8EF4AD69B15D4982559B297BCF1885C529F566660E57EC68ED" +
 		"BC3C05726CC02FD4CBF4976EAA9AFD5138FE8376435B9FC61D2F" +
 		"C0EB06E3"
-	// Group2048 is a generator and hexadecimal prime number.
+	// Group2048 is a primative root and hexadecimal prime number.
 	Group2048 = "2:0xAC6BDB41324A9A9BF166DE5E1389582FAF72B665" +
 		"1987EE07FC3192943DB56050A37329CBB4A099ED8193E0757767" +
 		"A13DD52312AB4B03310DCD7F48A9DA04FD50E8083969EDB767B0" +
@@ -26,7 +26,7 @@ const (
 		"041C7BC308D82A5698F3A8D0C38271AE35F8E9DBFBB694B5C803" +
 		"D89F7AE435DE236D525F54759B65E372FCD68EF20FA7111F9E4A" +
 		"FF73"
-	// Group4096 is a generator and hexadecimal prime number.
+	// Group4096 is a primative root and hexadecimal prime number.
 	Group4096 = "5:0xFFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B" +
 		"80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E34" +
 		"04DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245" +
@@ -47,7 +47,7 @@ const (
 		"4E6BC05D99B2964FA090C3A2233BA186515BE7ED1F612970CEE2" +
 		"D7AFB81BDD762170481CD0069127D5B05AA993B4EA988D8FDDC1" +
 		"86FFB7DC90A6C08F4DF435C934063199FFFFFFFFFFFFFFFF"
-	// Group8192 is a generator and hexadecimal prime number.
+	// Group8192 is a primative root and hexadecimal prime number.
 	Group8192 = "19:0xFFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628" +
 		"B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3" +
 		"404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C24" +
@@ -97,10 +97,9 @@ It is a combination of large prime value, N and a primative root
 of N, known as G, used by both the client and server.
 
 RFC 5054 Section 3.2 warns that due to the difficulty of calculating
-eligible prime values in real time, implementations of SRP use
-pre-defined values from a trusted source.
-
-The values provided in this package come from RFC 5054 Appendix A.
+eligible prime values in real time, implementations of SRP should
+use pre-defined values from a trusted source. The values provided
+in this package come from RFC 5054 Appendix A.
 
 Ref:
 
