@@ -165,14 +165,46 @@ func (c *Client) scramblingParam() *big.Int {
 	return c.U
 }
 
-// ProofOfKey creates hash to prove prior calculation of the premaster secret
-func (c *Client) ProofOfKey() error {
-	// TODO
-	return nil
+// ProofOfKey creates hash to prove prior calculation of the premaster secret.
+// Client must send proof of key prior to the Server as client proof is used
+// in the Server's own proof of key.
+// RFC 2945 Defines the proof as H(H(N) XOR H(g), H(I), s, A, B, H(premaster-secret))
+func (c *Client) ProofOfKey() (*big.Int, error) {
+	// Client proof of key
+	proof := c.H.New()
+	// Inner hashes for proof of key
+	nHash := c.H.New()
+	gHash := c.H.New()
+	uHash := c.H.New()
+	kHash := c.H.New()
+
+	nHash.Write(c.N.Bytes())
+	gHash.Write(c.G.Bytes())
+
+	xor := &big.Int{}
+	nHashI := &big.Int{}
+	gHashI := &big.Int{}
+	nHashI.SetBytes(nHash.Sum(nil))
+	gHashI.SetBytes(gHash.Sum(nil))
+	xor.Xor(nHashI, gHashI)
+
+	uHash.Write([]byte(c.Username))
+	kHash.Write(c.PremasterKey.Bytes())
+
+	proof.Write(xor.Bytes())
+	proof.Write(uHash.Sum(nil))
+	proof.Write([]byte(c.S))
+	proof.Write(c.EphemeralPublicKey.Bytes())
+	proof.Write(c.EphemeralSharedKey.Bytes())
+	proof.Write(kHash.Sum(nil))
+
+	proofInt := &big.Int{}
+	proofInt.SetBytes(proof.Sum(nil))
+	return proofInt, nil
 }
 
 // ValidateProof validates a SRP Server's proof of session key.
-func (c *Client) ValidateProof() bool {
+func (c *Client) IsProofValid() bool {
 	// TODO
 	return true
 }

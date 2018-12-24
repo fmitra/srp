@@ -84,14 +84,15 @@ func (s *Server) scramblingParam() *big.Int {
 	return s.U
 }
 
-// ProofOfKey creates hash to prove prior calculation of the premaster secret
-func (s *Server) ProofOfKey() error {
+// ProofOfKey creates hash to prove prior calculation of the premaster secret.
+// RFC 2945 Defines the proof as H(A, client-proof, H(premaster-secret))
+func (s *Server) ProofOfKey() (*big.Int, error) {
 	// TODO
-	return nil
+	return nil, nil
 }
 
 // ValidateProof validates a SRP Client's proof of session key.
-func (s *Server) ValidateProof() bool {
+func (s *Server) IsProofValid() bool {
 	// TODO
 	return true
 }

@@ -61,10 +61,10 @@ Initial hash of shared public keys
 
 Calculation of keys
 
-1. C calculates Premaster Secret PS = ((B - k (g^x)) ^ (a + ux)) % N
-2. S calculates Premaster Secret PS = ((A * v^u) ^ b) % N
-3. S calculates M1 = H(H(PS), A, B, I, s, N, g)
-4. C calculates M2 = H(H(PS), A, B, I, s, N, g)
+1. C calculates Premaster Secret cPS = ((B - k (g^x)) ^ (a + ux)) % N
+2. S calculates Premaster Secret sPS = ((A * v^u) ^ b) % N
+3. C calculates M1 = H(H(N) XOR H(g), H(I), s, A, B, H(cPS))
+4. S calculates M2 = H(A, M1, H(sPS))
 
 Confirmation of proof
 
@@ -98,11 +98,11 @@ import (
 type SRPCore interface {
 	EphemeralPrivate() *big.Int
 	EphemeralPublic() (*big.Int, error)
-	scramblingParam() *big.Int
 	MultiplerParam() (*big.Int, error)
 	PremasterSecret() (*big.Int, error)
-	ProofOfKey() error
-	ValidateProof() bool
+	ProofOfKey() (*big.Int, error)
+	IsProofValid() bool
+	scramblingParam() *big.Int
 }
 
 // SRPClient is an interface to support client related requests for
@@ -169,7 +169,6 @@ func (s *SRP) EphemeralPrivate() *big.Int {
 	ephemeralPrivateKey.SetBytes(bytes)
 	s.EphemeralPrivateKey = ephemeralPrivateKey
 	return s.EphemeralPrivateKey
-
 }
 
 // MultiplierParm returns a multipler paramenter K

@@ -238,3 +238,18 @@ func TestClientPremasterSecretRequiresInitializedServer(t *testing.T) {
 	_, err = c.PremasterSecret()
 	assert.EqualError(t, err, "generated invalid public key, key % N cannot be 0")
 }
+
+func TestClientCalculatesProofOfKey(t *testing.T) {
+	c, _ := NewDefaultClient("username", "password")
+	c.EphemeralPrivateKey = big.NewInt(1234577890000000000)
+	c.EphemeralSharedKey = big.NewInt(1234599789000000000)
+	c.EphemeralPublicKey = big.NewInt(1234599788000000000)
+	c.S = "123459978900000022"
+	c.PremasterSecret()
+
+	pHex := "0x9b2bbc5c38c041203050fc01099049f06d9e95652f052d8639f35add57add3a8"
+	pInt, _ := new(big.Int).SetString(pHex, 0)
+	p, err := c.ProofOfKey()
+	assert.NoError(t, err)
+	assert.Equal(t, p, pInt)
+}
