@@ -132,3 +132,19 @@ func (c *Client) RequestEnrollment() {
 func (c *Client) RequestAuthentication() {
 	// TODO
 }
+
+// NewDefaultClient returns an SRP server preconfigured for parameters
+// Group4096 and SHA256 hashing function.
+func NewDefaultClient(u, p string) (*Client, error) {
+	srp, err := NewDefaultSRP()
+	if err != nil {
+		return &Client{}, err
+	}
+	client := &Client{
+		SRP:      *srp,
+		Username: u,
+		Password: p,
+	}
+	client.EphemeralPublic()
+	return client, nil
+}

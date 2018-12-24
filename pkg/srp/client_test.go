@@ -177,3 +177,11 @@ func TestCreatesEphemeralPublicKeys(t *testing.T) {
 	pub, _ := new(big.Int).SetString(pubHex, 0)
 	assert.Equal(t, A, pub)
 }
+
+func TestCreatesDefaultClient(t *testing.T) {
+	username := "jane"
+	password := "janedoe"
+	client, err := NewDefaultClient(username, password)
+	assert.NoError(t, err)
+	assert.Equal(t, client.H, crypto.SHA256)
+}

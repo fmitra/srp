@@ -1,6 +1,7 @@
 package srp
 
 import (
+	"errors"
 	"math/big"
 )
 
@@ -13,7 +14,25 @@ type Server struct {
 // EphemeralPublic calculate's the server's ephemeral public key B.
 // RFC 5054 Defines B as (k*v + g^b) % N
 func (s *Server) EphemeralPublic() (*big.Int, error) {
-	return new(big.Int), nil
+	if s.G == nil || s.N == nil {
+		return nil, errors.New("srp.Group not initialized")
+	}
+
+	// k*v
+	kv := &big.Int{}
+	// g^b
+	gB := &big.Int{}
+	B := &big.Int{}
+
+	kv.Mul(s.Secret, s.K)
+	gB.Exp(s.G, s.EphemeralPrivateKey, s.N)
+
+	kv.Mod(kv, s.N)
+	B.Add(kv, gB)
+	B.Mod(B, s.N)
+
+	s.EphemeralPublicKey = B
+	return B, nil
 }
 
 // CalculateSessionKey creates a shared session key. RFC 5054 refers to this
@@ -45,4 +64,17 @@ func (s *Server) ReceiveEnrollmentRequest() {
 // pre-enrolled SRP Client.
 func (s *Server) ReceiveAuthenticationRequest() {
 	// TODO
+}
+
+// NewDefaultServer returns an SRP server preconfigured for parameters
+// Group4096 and SHA256 hashing function.
+func NewDefaultServer() (*Server, error) {
+	srp, err := NewDefaultSRP()
+	if err != nil {
+		return &Server{}, err
+	}
+	server := &Server{
+		SRP: *srp,
+	}
+	return server, nil
 }
