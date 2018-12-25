@@ -101,7 +101,7 @@ type SRPCore interface {
 	MultiplerParam() (*big.Int, error)
 	PremasterSecret() (*big.Int, error)
 	ProofOfKey() (*big.Int, error)
-	IsProofValid() bool
+	IsProofValid(i *big.Int) bool
 	scramblingParam() *big.Int
 }
 

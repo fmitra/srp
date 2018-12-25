@@ -103,3 +103,29 @@ func TestClientAndServerCalculatesMatchingKey(t *testing.T) {
 	k2, _ := c.PremasterSecret()
 	assert.Equal(t, k1, k2)
 }
+
+func TestClientAndServerValidateProof(t *testing.T) {
+	c, _ := NewDefaultClient("username", "password")
+	s, _ := NewDefaultServer()
+
+	c.Salt()
+	c.LongTermSecret()
+	v, _ := c.Verifier()
+
+	// Client must provide verifier, salt, username to server
+	s.Secret = v
+	s.I = c.I
+	s.S = c.S
+	s.EphemeralPublic()
+
+	// Client and server must exchange ephemeral public keys
+	c.EphemeralSharedKey = s.EphemeralPublicKey
+	s.EphemeralSharedKey = c.EphemeralPublicKey
+
+	// Client must generate proof first
+	cProof, _ := c.ProofOfKey()
+	sProof, _ := s.ProofOfKey(cProof)
+
+	assert.True(c.IsProofValid(sProof))
+	assert.True(s.IsProofValid(cProof))
+}

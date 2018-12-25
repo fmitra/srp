@@ -85,16 +85,35 @@ func (s *Server) scramblingParam() *big.Int {
 }
 
 // ProofOfKey creates hash to prove prior calculation of the premaster secret.
+// Server calculation of proof requires the SRP Client's proof of key (m) as
+// a prerequisite.
 // RFC 2945 Defines the proof as H(A, client-proof, H(premaster-secret))
-func (s *Server) ProofOfKey() (*big.Int, error) {
-	// TODO
-	return nil, nil
+func (s *Server) ProofOfKey(m *big.Int) (*big.Int, error) {
+	if s.PremasterKey == nil {
+		return nil, errors.New("premaster key required to calculate proof")
+	}
+
+	if m == nil || m == big.NewInt(0) {
+		return nil, errors.New("invalid client proof received")
+	}
+
+	proof := s.H.New()
+	kHash := s.H.New()
+	proofInt := &big.Int{}
+
+	kHash.Write(s.PremasterKey.Bytes())
+	proof.Write(s.EphemeralSharedKey.Bytes())
+	proof.Write(m.Bytes())
+	proof.Write(kHash.Sum(nil))
+
+	proofInt.SetBytes(proof.Sum(nil))
+	return proofInt, nil
 }
 
 // ValidateProof validates a SRP Client's proof of session key.
-func (s *Server) IsProofValid() bool {
+func (s *Server) IsProofValid(i *big.Int) bool {
 	// TODO
-	return true
+	return false
 }
 
 // ReceiveEnrollmentRequest acknowledges an enrollment payload from an SRP Client.

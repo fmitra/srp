@@ -170,6 +170,10 @@ func (c *Client) scramblingParam() *big.Int {
 // in the Server's own proof of key.
 // RFC 2945 Defines the proof as H(H(N) XOR H(g), H(I), s, A, B, H(premaster-secret))
 func (c *Client) ProofOfKey() (*big.Int, error) {
+	if c.PremasterKey == nil {
+		return nil, errors.New("premaster key required to calculate proof")
+	}
+
 	// Client proof of key
 	proof := c.H.New()
 	// Inner hashes for proof of key
@@ -204,9 +208,9 @@ func (c *Client) ProofOfKey() (*big.Int, error) {
 }
 
 // ValidateProof validates a SRP Server's proof of session key.
-func (c *Client) IsProofValid() bool {
+func (c *Client) IsProofValid(i *big.Int) bool {
 	// TODO
-	return true
+	return false
 }
 
 // RequestEnrollment prepares an enrollment payload for an SRP server.

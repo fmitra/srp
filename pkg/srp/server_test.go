@@ -104,3 +104,20 @@ func TestServerCalculatesPremasterSecret(t *testing.T) {
 	assert.Equal(t, pms, server.PremasterKey)
 	assert.Equal(t, pms, key)
 }
+
+func TestServerCalculatesProofOfKey(t *testing.T) {
+	server, _ := NewDefaultServer()
+	server.Secret = big.NewInt(1234567789000000)
+	server.EphemeralPrivateKey = big.NewInt(1234577890000000000)
+	server.EphemeralSharedKey = big.NewInt(1234577890000000000)
+	server.EphemeralPublic()
+	server.PremasterSecret()
+
+	pHex := "0xbf79e5d42a00bd22b46c4c5792c553697128247ebf13a4487104d3cc470cab73"
+	pInt, _ := new(big.Int).SetString(pHex, 0)
+
+	clientProof := big.NewInt(12000000000)
+	p, err := server.ProofOfKey(clientProof)
+	assert.NoError(t, err)
+	assert.Equal(t, p, pInt)
+}
