@@ -57,7 +57,7 @@ func (s *Server) PremasterSecret() (*big.Int, error) {
 		return nil, errors.New("received invalid public key, key % N cannot be 0")
 	}
 
-	s.scramblingParam()
+	s.ScramblingParam(s.EphemeralSharedKey, s.EphemeralPublicKey)
 
 	// (A * v^u)
 	vU := &big.Int{}
@@ -72,48 +72,11 @@ func (s *Server) PremasterSecret() (*big.Int, error) {
 	return s.PremasterKey, nil
 }
 
-// scramblingParam returns a scrambling paramter U.
-// RFC 5054 2.5.3 Defines U as SHA1(A | B)
-func (s *Server) scramblingParam() *big.Int {
-	h := s.H.New()
-	h.Write(s.EphemeralPublicKey.Bytes())
-	h.Write(s.EphemeralSharedKey.Bytes())
-
-	U := &big.Int{}
-	s.U = U.SetBytes(h.Sum(nil))
-	return s.U
-}
-
-// ProofOfKey creates hash to prove prior calculation of the premaster secret.
-// Server calculation of proof requires the SRP Client's proof of key (m) as
-// a prerequisite.
-// RFC 2945 Defines the proof as H(A, client-proof, H(premaster-secret))
-func (s *Server) ProofOfKey(m *big.Int) (*big.Int, error) {
-	if s.PremasterKey == nil {
-		return nil, errors.New("premaster key required to calculate proof")
-	}
-
-	if m == nil || m == big.NewInt(0) {
-		return nil, errors.New("invalid client proof received")
-	}
-
-	proof := s.H.New()
-	kHash := s.H.New()
-	proofInt := &big.Int{}
-
-	kHash.Write(s.PremasterKey.Bytes())
-	proof.Write(s.EphemeralSharedKey.Bytes())
-	proof.Write(m.Bytes())
-	proof.Write(kHash.Sum(nil))
-
-	proofInt.SetBytes(proof.Sum(nil))
-	return proofInt, nil
-}
-
 // ValidateProof validates a SRP Client's proof of session key.
 func (s *Server) IsProofValid(i *big.Int) bool {
-	// TODO
-	return false
+	proof, _ := s.ClientProof(s.EphemeralSharedKey, s.EphemeralPublicKey)
+	isValid := proof.Cmp(i) == 0
+	return isValid
 }
 
 // ReceiveEnrollmentRequest acknowledges an enrollment payload from an SRP Client.

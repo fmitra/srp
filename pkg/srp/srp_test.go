@@ -69,8 +69,8 @@ func TestServerClientCreatesMatchingScramblingParameter(t *testing.T) {
 	c.EphemeralSharedKey = s.EphemeralPublicKey
 	s.EphemeralSharedKey = c.EphemeralPublicKey
 
-	u1 := s.scramblingParam()
-	u2 := c.scramblingParam()
+	u1 := s.ScramblingParam(s.EphemeralSharedKey, s.EphemeralPublicKey)
+	u2 := c.ScramblingParam(c.EphemeralPublicKey, c.EphemeralSharedKey)
 
 	assert.Equal(t, u1, u2)
 }
@@ -122,10 +122,16 @@ func TestClientAndServerValidateProof(t *testing.T) {
 	c.EphemeralSharedKey = s.EphemeralPublicKey
 	s.EphemeralSharedKey = c.EphemeralPublicKey
 
-	// Client must generate proof first
-	cProof, _ := c.ProofOfKey()
-	sProof, _ := s.ProofOfKey(cProof)
+	s.PremasterSecret()
+	c.PremasterSecret()
 
-	assert.True(c.IsProofValid(sProof))
-	assert.True(s.IsProofValid(cProof))
+	// Client must generate proof first
+	cProof, cErr := c.ClientProof(c.EphemeralPublicKey, c.EphemeralSharedKey)
+	sProof, sErr := s.ServerProof(cProof, s.EphemeralSharedKey)
+
+	assert.Equal(t, s.PremasterKey, c.PremasterKey)
+	assert.NoError(t, cErr)
+	assert.NoError(t, sErr)
+	assert.True(t, c.IsProofValid(sProof))
+	assert.True(t, s.IsProofValid(cProof))
 }

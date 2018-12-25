@@ -100,9 +100,10 @@ type SRPCore interface {
 	EphemeralPublic() (*big.Int, error)
 	MultiplerParam() (*big.Int, error)
 	PremasterSecret() (*big.Int, error)
-	ProofOfKey() (*big.Int, error)
+	ServerProof(m *big.Int) (*big.Int, error)
+	ClientProof(a, b *big.Int) (*big.Int, error)
 	IsProofValid(i *big.Int) bool
-	scramblingParam() *big.Int
+	ScramblingParam(a, b *big.Int) *big.Int
 }
 
 // SRPClient is an interface to support client related requests for
@@ -193,6 +194,88 @@ func (s *SRP) MultiplierParam() (*big.Int, error) {
 	K := &big.Int{}
 	s.K = K.SetBytes(h.Sum(nil))
 	return s.K, nil
+}
+
+// ScramblingParam returns a scrambling paramter U.
+// RFC 5054 2.5.3 Defines U as SHA1(A | B)
+func (s *SRP) ScramblingParam(a, b *big.Int) *big.Int {
+	h := s.H.New()
+	h.Write(b.Bytes())
+	h.Write(a.Bytes())
+
+	U := &big.Int{}
+	s.U = U.SetBytes(h.Sum(nil))
+	return s.U
+}
+
+// ServerProofcreates hash to prove prior calculation of the premaster secret.
+// Server calculation of proof requires the SRP Client's proof of key (m) as
+// a prerequisite. On receipt of the SRP Server proof, the client must run the
+// same calculation to confirm it can replicate the proof.
+// RFC 2945 Defines the proof as H(A, client-proof, H(premaster-secret))
+func (s *SRP) ServerProof(m, a *big.Int) (*big.Int, error) {
+	if s.PremasterKey == nil {
+		return nil, errors.New("premaster key required to calculate proof")
+	}
+
+	if m == nil || m == big.NewInt(0) {
+		return nil, errors.New("invalid client proof received")
+	}
+
+	proof := s.H.New()
+	kHash := s.H.New()
+	proofInt := &big.Int{}
+
+	kHash.Write(s.PremasterKey.Bytes())
+	proof.Write(a.Bytes())
+	proof.Write(m.Bytes())
+	proof.Write(kHash.Sum(nil))
+
+	proofInt.SetBytes(proof.Sum(nil))
+	return proofInt, nil
+}
+
+// ClientProof creates hash to prove prior calculation of the premaster secret.
+// Client must send proof of key prior to the Server as client proof is used
+// in the Server's own proof of key. On receipt of the SRP Client proof, the server
+// must run the same calculation to confirm it can replicate the proof.
+// RFC 2945 Defines the proof as H(H(N) XOR H(g), H(I), s, A, B, H(premaster-secret))
+func (s *SRP) ClientProof(a, b *big.Int) (*big.Int, error) {
+	if s.PremasterKey == nil {
+		return nil, errors.New("premaster key required to calculate proof")
+	}
+
+	// Client proof of key
+	proof := s.H.New()
+	// Inner hashes for proof of key
+	nHash := s.H.New()
+	gHash := s.H.New()
+	uHash := s.H.New()
+	kHash := s.H.New()
+
+	nHash.Write(s.N.Bytes())
+	gHash.Write(s.G.Bytes())
+
+	xor := &big.Int{}
+	nHashI := &big.Int{}
+	gHashI := &big.Int{}
+	nHashI.SetBytes(nHash.Sum(nil))
+	gHashI.SetBytes(gHash.Sum(nil))
+	xor.Xor(nHashI, gHashI)
+
+	uHash.Write([]byte(s.I))
+	kHash.Write(s.PremasterKey.Bytes())
+
+	proof.Write(xor.Bytes())
+	proof.Write(uHash.Sum(nil))
+	proof.Write([]byte(s.S))
+	proof.Write(a.Bytes())
+	proof.Write(b.Bytes())
+	proof.Write(kHash.Sum(nil))
+
+	proofInt := &big.Int{}
+	proofInt.SetBytes(proof.Sum(nil))
+	return proofInt, nil
 }
 
 // NewSRP returns an SRP environment with configurable hashing function

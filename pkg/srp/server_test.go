@@ -117,7 +117,7 @@ func TestServerCalculatesProofOfKey(t *testing.T) {
 	pInt, _ := new(big.Int).SetString(pHex, 0)
 
 	clientProof := big.NewInt(12000000000)
-	p, err := server.ProofOfKey(clientProof)
+	p, err := server.ServerProof(clientProof, server.EphemeralSharedKey)
 	assert.NoError(t, err)
 	assert.Equal(t, p, pInt)
 }

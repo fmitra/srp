@@ -12,7 +12,6 @@ import (
 // enrollment and authentication against an SRP Server.
 type Client struct {
 	SRP
-	Username string
 	Password string
 }
 
@@ -34,7 +33,7 @@ func (c *Client) Salt() string {
 // LongTermSecret returns the client's long term secret X.
 // RFC 5054 2.5.3 Defines X as SHA1(salt|SHA1(username|":"|password))
 func (c *Client) LongTermSecret() (*big.Int, error) {
-	if c.S == "" || c.Username == "" || c.Password == "" {
+	if c.S == "" || c.I == "" || c.Password == "" {
 		return nil, errors.New("salt, username, and password must be initialized")
 	}
 
@@ -49,7 +48,7 @@ func (c *Client) LongTermSecret() (*big.Int, error) {
 	iHasher := c.H.New()
 	oHasher := c.H.New()
 
-	iHasher.Write([]byte(c.Username))
+	iHasher.Write([]byte(c.I))
 	iHasher.Write([]byte(":"))
 	iHasher.Write([]byte(c.Password))
 	innerHash := iHasher.Sum(nil)
@@ -129,7 +128,7 @@ func (c *Client) PremasterSecret() (*big.Int, error) {
 		c.LongTermSecret()
 	}
 
-	c.scramblingParam()
+	c.ScramblingParam(c.EphemeralPublicKey, c.EphemeralSharedKey)
 
 	t1 := &big.Int{}
 	t2 := &big.Int{}
@@ -151,66 +150,12 @@ func (c *Client) PremasterSecret() (*big.Int, error) {
 	return c.PremasterKey, nil
 }
 
-// scramblingParam returns a scrambling paramter U.
-// RFC 5054 2.5.3 Defines U as SHA1(A | B)
-func (c *Client) scramblingParam() *big.Int {
-	h := c.H.New()
-	// EphemeralSharedKey is written first to match
-	// server order.
-	h.Write(c.EphemeralSharedKey.Bytes())
-	h.Write(c.EphemeralPublicKey.Bytes())
-
-	U := &big.Int{}
-	c.U = U.SetBytes(h.Sum(nil))
-	return c.U
-}
-
-// ProofOfKey creates hash to prove prior calculation of the premaster secret.
-// Client must send proof of key prior to the Server as client proof is used
-// in the Server's own proof of key.
-// RFC 2945 Defines the proof as H(H(N) XOR H(g), H(I), s, A, B, H(premaster-secret))
-func (c *Client) ProofOfKey() (*big.Int, error) {
-	if c.PremasterKey == nil {
-		return nil, errors.New("premaster key required to calculate proof")
-	}
-
-	// Client proof of key
-	proof := c.H.New()
-	// Inner hashes for proof of key
-	nHash := c.H.New()
-	gHash := c.H.New()
-	uHash := c.H.New()
-	kHash := c.H.New()
-
-	nHash.Write(c.N.Bytes())
-	gHash.Write(c.G.Bytes())
-
-	xor := &big.Int{}
-	nHashI := &big.Int{}
-	gHashI := &big.Int{}
-	nHashI.SetBytes(nHash.Sum(nil))
-	gHashI.SetBytes(gHash.Sum(nil))
-	xor.Xor(nHashI, gHashI)
-
-	uHash.Write([]byte(c.Username))
-	kHash.Write(c.PremasterKey.Bytes())
-
-	proof.Write(xor.Bytes())
-	proof.Write(uHash.Sum(nil))
-	proof.Write([]byte(c.S))
-	proof.Write(c.EphemeralPublicKey.Bytes())
-	proof.Write(c.EphemeralSharedKey.Bytes())
-	proof.Write(kHash.Sum(nil))
-
-	proofInt := &big.Int{}
-	proofInt.SetBytes(proof.Sum(nil))
-	return proofInt, nil
-}
-
 // ValidateProof validates a SRP Server's proof of session key.
 func (c *Client) IsProofValid(i *big.Int) bool {
-	// TODO
-	return false
+	cP, _ := c.ClientProof(c.EphemeralPublicKey, c.EphemeralSharedKey)
+	proof, _ := c.ServerProof(cP, c.EphemeralPublicKey)
+	isValid := proof.Cmp(i) == 0
+	return isValid
 }
 
 // RequestEnrollment prepares an enrollment payload for an SRP server.
@@ -234,9 +179,9 @@ func NewDefaultClient(u, p string) (*Client, error) {
 	if err != nil {
 		return &Client{}, err
 	}
+	srp.I = u
 	client := &Client{
 		SRP:      *srp,
-		Username: u,
 		Password: p,
 	}
 	client.EphemeralPublic()

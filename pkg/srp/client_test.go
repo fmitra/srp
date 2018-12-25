@@ -22,9 +22,9 @@ func TestSecretRequiresInitializedClient(t *testing.T) {
 	assert.EqualError(t, err, "salt, username, and password must be initialized")
 
 	c = &Client{
-		Username: "username",
 		SRP: SRP{
 			S: "random-salt",
+			I: "username",
 		},
 	}
 	_, err = c.LongTermSecret()
@@ -43,9 +43,9 @@ func TestSecretRequiresInitializedClient(t *testing.T) {
 func TestCreatesSecret(t *testing.T) {
 	c := &Client{
 		Password: "password",
-		Username: "username",
 		SRP: SRP{
-			S:      "random-salt",
+			S: "random-salt",
+			I: "username",
 			Secret: big.NewInt(2),
 		},
 	}
@@ -55,10 +55,10 @@ func TestCreatesSecret(t *testing.T) {
 
 	c = &Client{
 		Password: "password",
-		Username: "username",
 		SRP: SRP{
 			H: crypto.SHA256,
 			S: "random-salt",
+			I: "username",
 		},
 	}
 	X, err = c.LongTermSecret()
@@ -86,13 +86,13 @@ func TestItCreatesAVerifier(t *testing.T) {
 	group, _ := NewGroup(Group4096)
 	N, _ := group.CalcN()
 	c := &Client{
-		Username: "username",
 		Password: "password",
 		SRP: SRP{
 			S: "random-salt",
 			H: crypto.SHA256,
 			G: group.G,
 			N: N,
+			I: "username",
 		},
 	}
 	V, err := c.Verifier()
@@ -249,7 +249,7 @@ func TestClientCalculatesProofOfKey(t *testing.T) {
 
 	pHex := "0x9b2bbc5c38c041203050fc01099049f06d9e95652f052d8639f35add57add3a8"
 	pInt, _ := new(big.Int).SetString(pHex, 0)
-	p, err := c.ProofOfKey()
+	p, err := c.ClientProof(c.EphemeralPublicKey, c.EphemeralSharedKey)
 	assert.NoError(t, err)
 	assert.Equal(t, p, pInt)
 }
