@@ -10,7 +10,7 @@ import (
 
 func TestSecretRequiresInitializedClient(t *testing.T) {
 	c := &Client{}
-	_, err := c.LongTermSecret()
+	_, err := c.longTermSecret()
 	assert.EqualError(t, err, "salt, username, and password must be initialized")
 
 	c = &Client{
@@ -18,7 +18,7 @@ func TestSecretRequiresInitializedClient(t *testing.T) {
 			S: "random-salt",
 		},
 	}
-	_, err = c.LongTermSecret()
+	_, err = c.longTermSecret()
 	assert.EqualError(t, err, "salt, username, and password must be initialized")
 
 	c = &Client{
@@ -27,66 +27,66 @@ func TestSecretRequiresInitializedClient(t *testing.T) {
 			I: "username",
 		},
 	}
-	_, err = c.LongTermSecret()
+	_, err = c.longTermSecret()
 	assert.EqualError(t, err, "salt, username, and password must be initialized")
 
 	c = &Client{
-		Password: "password",
+		password: "password",
 		SRP: SRP{
 			S: "random-salt",
 		},
 	}
-	_, err = c.LongTermSecret()
+	_, err = c.longTermSecret()
 	assert.EqualError(t, err, "salt, username, and password must be initialized")
 }
 
 func TestCreatesSecret(t *testing.T) {
 	c := &Client{
-		Password: "password",
+		password: "password",
 		SRP: SRP{
-			S: "random-salt",
-			I: "username",
+			S:      "random-salt",
+			I:      "username",
 			Secret: big.NewInt(2),
 		},
 	}
-	X, err := c.LongTermSecret()
+	x, err := c.longTermSecret()
 	assert.NoError(t, err)
-	assert.Equal(t, X, big.NewInt(2))
+	assert.Equal(t, x, big.NewInt(2))
 
 	c = &Client{
-		Password: "password",
+		password: "password",
 		SRP: SRP{
 			H: crypto.SHA256,
 			S: "random-salt",
 			I: "username",
 		},
 	}
-	X, err = c.LongTermSecret()
-	XAsHex := "0xd43b21c189d67f332803c5eb1abd3b5aa25a2bef6bde7c95bcf53b9e5e9055b7"
-	secret, _ := new(big.Int).SetString(XAsHex, 0)
+	x, err = c.longTermSecret()
+	xAsHex := "0xd43b21c189d67f332803c5eb1abd3b5aa25a2bef6bde7c95bcf53b9e5e9055b7"
+	secret, _ := new(big.Int).SetString(xAsHex, 0)
 
 	assert.NoError(t, err)
-	assert.Equal(t, X, secret)
-	assert.Equal(t, c.Secret, X)
+	assert.Equal(t, x, secret)
+	assert.Equal(t, c.Secret, x)
 }
 
 func TestItCreatesASalt(t *testing.T) {
 	c := &Client{}
-	assert.True(t, len(c.Salt()) >= 15)
+	assert.True(t, len(c.salt()) >= 15)
 
 	c = &Client{
 		SRP: SRP{
 			S: "random-salt",
 		},
 	}
-	assert.Equal(t, c.Salt(), "random-salt")
+	assert.Equal(t, c.salt(), "random-salt")
 }
 
 func TestItCreatesAVerifier(t *testing.T) {
 	group, _ := NewGroup(Group4096)
 	N, _ := group.CalcN()
 	c := &Client{
-		Password: "password",
+		password: "password",
 		SRP: SRP{
 			S: "random-salt",
 			H: crypto.SHA256,
@@ -95,8 +95,8 @@ func TestItCreatesAVerifier(t *testing.T) {
 			I: "username",
 		},
 	}
-	V, err := c.Verifier()
-	VAsHex := "0x918426882c00a88dfb3850d8eafe06ca4d60f4b20f" +
+	V, err := c.verifier()
+	vAsHex := "0x918426882c00a88dfb3850d8eafe06ca4d60f4b20f" +
 		"20f4fa8754d110fb61d496206bf360d4f4c3a26851ee35f8b7" +
 		"d918e97c1dcc4e5a5f04d613521e8c3fee454473e063c82168" +
 		"6cbcbdbd2257069a8a57289ed6215dc94ee779ca151392eafd" +
@@ -118,13 +118,13 @@ func TestItCreatesAVerifier(t *testing.T) {
 		"9c63484c44882c63bfaa2bedb0b0417cf8807eee9be7ccad0f" +
 		"fe8de6f8b289c28b80af9d3fb12a96d0"
 	assert.NoError(t, err)
-	v, _ := new(big.Int).SetString(VAsHex, 0)
+	v, _ := new(big.Int).SetString(vAsHex, 0)
 	assert.Equal(t, V, v)
 }
 
 func TestVerifierRequiresInitializedClient(t *testing.T) {
 	c := &Client{}
-	_, err := c.Verifier()
+	_, err := c.verifier()
 	assert.EqualError(t, err, "srp.Group not initialized")
 
 	c = &Client{
@@ -133,7 +133,7 @@ func TestVerifierRequiresInitializedClient(t *testing.T) {
 			N: big.NewInt(200),
 		},
 	}
-	_, err = c.Verifier()
+	_, err = c.verifier()
 	errMsg := "failed to generate verifier - salt, username, " +
 		"and password must be initialized"
 	assert.EqualError(t, err, errMsg)
@@ -141,7 +141,7 @@ func TestVerifierRequiresInitializedClient(t *testing.T) {
 
 func TestEphemeralPublicRequiresInitializedClient(t *testing.T) {
 	c := &Client{}
-	_, err := c.EphemeralPublic()
+	_, err := c.ephemeralPublic()
 	assert.EqualError(t, err, "srp.Group not initialized")
 }
 
@@ -152,11 +152,11 @@ func TestCreatesEphemeralPublicKeys(t *testing.T) {
 		"1b403adcef7"
 	pk, _ := new(big.Int).SetString(pkHex, 0)
 	// Overwrite the private key so we have a constant value we can test with
-	srp.EphemeralPrivateKey = pk
+	srp.ephemeralPrivateKey = pk
 	c := &Client{SRP: *srp}
-	A, err := c.EphemeralPublic()
+	A, err := c.ephemeralPublic()
 	assert.NoError(t, err)
-	assert.Equal(t, c.EphemeralPublicKey, A)
+	assert.Equal(t, c.ephemeralPublicKey, A)
 	pubHex := "0x44d65b44985f3becf21426e118adaaee7847c74caff7a89e1b88cac5" +
 		"a5263267561208acbd95f368ce656d5ccde03938cce86cd5fb9efa393c6e89dc" +
 		"22b2299758407280ca2278b56478b4e56217db2d669f49f251363faaba0c5f92" +
@@ -188,9 +188,9 @@ func TestCreatesDefaultClient(t *testing.T) {
 
 func TestClientCalculatesPremasterSecret(t *testing.T) {
 	c, _ := NewDefaultClient("username", "password")
-	c.EphemeralPrivateKey = big.NewInt(1234577890000000000)
-	c.EphemeralSharedKey = big.NewInt(1234599789000000000)
-	c.EphemeralPublicKey = big.NewInt(1234599788000000000)
+	c.ephemeralPrivateKey = big.NewInt(1234577890000000000)
+	c.ephemeralSharedKey = big.NewInt(1234599789000000000)
+	c.ephemeralPublicKey = big.NewInt(1234599788000000000)
 	c.S = "123459978900000022"
 	pHex := "0xac63795cddc845c660a2e65aff784be0173a1397f048b1f88046e37e5d3df" +
 		"f9150a990a1ed89b496e219f8fab0c27c873e2c6f96b3d6cdd0800c4554316b9c2e" +
@@ -209,7 +209,7 @@ func TestClientCalculatesPremasterSecret(t *testing.T) {
 		"d88f0eedc12d21c7d1f5a65de3fb2f0a819dde954b820912038228bfb222ecb8c27" +
 		"46c0e1e47b6695077d3216bc2"
 	key, _ := new(big.Int).SetString(pHex, 0)
-	pms, err := c.PremasterSecret()
+	pms, err := c.premasterSecret()
 	assert.NoError(t, err)
 	assert.Equal(t, pms, c.PremasterKey)
 	assert.Equal(t, pms, key)
@@ -217,39 +217,39 @@ func TestClientCalculatesPremasterSecret(t *testing.T) {
 
 func TestClientPremasterSecretRequiresInitializedServer(t *testing.T) {
 	c := &Client{}
-	_, err := c.PremasterSecret()
+	_, err := c.premasterSecret()
 	assert.EqualError(t, err, "srp.Group not initialized")
 
 	c, _ = NewDefaultClient("username", "password")
-	_, err = c.PremasterSecret()
+	_, err = c.premasterSecret()
 	assert.EqualError(t, err, "shared keys A/B not calculated")
 
 	c, _ = NewDefaultClient("username", "password")
-	c.EphemeralSharedKey = big.NewInt(20)
-	c.EphemeralPublicKey = big.NewInt(21)
+	c.ephemeralSharedKey = big.NewInt(20)
+	c.ephemeralPublicKey = big.NewInt(21)
 	c.N = big.NewInt(2)
-	_, err = c.PremasterSecret()
+	_, err = c.premasterSecret()
 	assert.EqualError(t, err, "received invalid public key, key % N cannot be 0")
 
 	c, _ = NewDefaultClient("username", "password")
-	c.EphemeralSharedKey = big.NewInt(20)
-	c.EphemeralPublicKey = big.NewInt(21)
+	c.ephemeralSharedKey = big.NewInt(20)
+	c.ephemeralPublicKey = big.NewInt(21)
 	c.N = big.NewInt(3)
-	_, err = c.PremasterSecret()
+	_, err = c.premasterSecret()
 	assert.EqualError(t, err, "generated invalid public key, key % N cannot be 0")
 }
 
 func TestClientCalculatesProofOfKey(t *testing.T) {
 	c, _ := NewDefaultClient("username", "password")
-	c.EphemeralPrivateKey = big.NewInt(1234577890000000000)
-	c.EphemeralSharedKey = big.NewInt(1234599789000000000)
-	c.EphemeralPublicKey = big.NewInt(1234599788000000000)
+	c.ephemeralPrivateKey = big.NewInt(1234577890000000000)
+	c.ephemeralSharedKey = big.NewInt(1234599789000000000)
+	c.ephemeralPublicKey = big.NewInt(1234599788000000000)
 	c.S = "123459978900000022"
-	c.PremasterSecret()
+	c.premasterSecret()
 
 	pHex := "0x9b2bbc5c38c041203050fc01099049f06d9e95652f052d8639f35add57add3a8"
 	pInt, _ := new(big.Int).SetString(pHex, 0)
-	p, err := c.ClientProof(c.EphemeralPublicKey, c.EphemeralSharedKey)
+	p, err := c.clientProof(c.ephemeralPublicKey, c.ephemeralSharedKey)
 	assert.NoError(t, err)
 	assert.Equal(t, p, pInt)
 }

@@ -11,43 +11,43 @@ import (
 func TestCreatesEphemeralPrivateKey(t *testing.T) {
 	minBitSize := 256
 	srp := &SRP{}
-	ephemeralPrivateKey := srp.EphemeralPrivate()
-	assert.Equal(t, srp.EphemeralPrivateKey, ephemeralPrivateKey)
-	assert.True(t, srp.EphemeralPrivateKey.BitLen() >= minBitSize)
+	ephemeralPrivateKey := srp.ephemeralPrivate()
+	assert.Equal(t, srp.ephemeralPrivateKey, ephemeralPrivateKey)
+	assert.True(t, srp.ephemeralPrivateKey.BitLen() >= minBitSize)
 }
 
 func TestCreatesMultiplierParameter(t *testing.T) {
 	group, _ := NewGroup(Group4096)
-	N, _ := group.CalcN()
+	n, _ := group.CalcN()
 	srp := &SRP{
 		H: crypto.SHA256,
-		N: N,
+		N: n,
 		G: group.G,
 	}
-	K, err := srp.MultiplierParam()
+	K, err := srp.multiplierParam()
 	hex := "0x3516f0d285667a2bc686470c48edf380fd82558f16ac9fe7978b06b11efaf406"
 	mp, _ := new(big.Int).SetString(hex, 0)
 	assert.NoError(t, err)
-	assert.Equal(t, srp.K, K)
-	assert.Equal(t, srp.K, mp)
+	assert.Equal(t, srp.k, K)
+	assert.Equal(t, srp.k, mp)
 }
 
 func TestMultiplierParamRequiresInitializedSRP(t *testing.T) {
 	group, _ := NewGroup(Group4096)
-	N, _ := group.CalcN()
+	n, _ := group.CalcN()
 	srp := &SRP{}
-	_, err := srp.MultiplierParam()
+	_, err := srp.multiplierParam()
 	assert.EqualError(t, err, "prime value not initialized")
 
-	srp = &SRP{N: N}
-	_, err = srp.MultiplierParam()
+	srp = &SRP{N: n}
+	_, err = srp.multiplierParam()
 	assert.EqualError(t, err, "primative root not initialized")
 
 	srp = &SRP{
-		N: N,
+		N: n,
 		G: group.G,
 	}
-	_, err = srp.MultiplierParam()
+	_, err = srp.multiplierParam()
 	assert.EqualError(t, err, "hash not initialized")
 }
 
@@ -55,22 +55,22 @@ func TestServerClientCreatesMatchingScramblingParameter(t *testing.T) {
 	c, _ := NewDefaultClient("username", "password")
 	s, _ := NewDefaultServer()
 
-	c.Salt()
-	c.LongTermSecret()
-	v, _ := c.Verifier()
+	c.salt()
+	c.longTermSecret()
+	v, _ := c.verifier()
 
 	// Client must provide verifier, salt, username to server
 	s.Secret = v
 	s.I = c.I
 	s.S = c.S
-	s.EphemeralPublic()
+	s.ephemeralPublic()
 
 	// Client and server must exchange ephemeral public keys
-	c.EphemeralSharedKey = s.EphemeralPublicKey
-	s.EphemeralSharedKey = c.EphemeralPublicKey
+	c.ephemeralSharedKey = s.ephemeralPublicKey
+	s.ephemeralSharedKey = c.ephemeralPublicKey
 
-	u1 := s.ScramblingParam(s.EphemeralSharedKey, s.EphemeralPublicKey)
-	u2 := c.ScramblingParam(c.EphemeralPublicKey, c.EphemeralSharedKey)
+	u1 := s.scramblingParam(s.ephemeralSharedKey, s.ephemeralPublicKey)
+	u2 := c.scramblingParam(c.ephemeralPublicKey, c.ephemeralSharedKey)
 
 	assert.Equal(t, u1, u2)
 }
@@ -85,22 +85,22 @@ func TestClientAndServerCalculatesMatchingKey(t *testing.T) {
 	c, _ := NewDefaultClient("username", "password")
 	s, _ := NewDefaultServer()
 
-	c.Salt()
-	c.LongTermSecret()
-	v, _ := c.Verifier()
+	c.salt()
+	c.longTermSecret()
+	v, _ := c.verifier()
 
 	// Client must provide verifier, salt, username to server
 	s.Secret = v
 	s.I = c.I
 	s.S = c.S
-	s.EphemeralPublic()
+	s.ephemeralPublic()
 
 	// Client and server must exchange ephemeral public keys
-	c.EphemeralSharedKey = s.EphemeralPublicKey
-	s.EphemeralSharedKey = c.EphemeralPublicKey
+	c.ephemeralSharedKey = s.ephemeralPublicKey
+	s.ephemeralSharedKey = c.ephemeralPublicKey
 
-	k1, _ := s.PremasterSecret()
-	k2, _ := c.PremasterSecret()
+	k1, _ := s.premasterSecret()
+	k2, _ := c.premasterSecret()
 	assert.Equal(t, k1, k2)
 }
 
@@ -108,26 +108,26 @@ func TestClientAndServerValidateProof(t *testing.T) {
 	c, _ := NewDefaultClient("username", "password")
 	s, _ := NewDefaultServer()
 
-	c.Salt()
-	c.LongTermSecret()
-	v, _ := c.Verifier()
+	c.salt()
+	c.longTermSecret()
+	v, _ := c.verifier()
 
 	// Client must provide verifier, salt, username to server
 	s.Secret = v
 	s.I = c.I
 	s.S = c.S
-	s.EphemeralPublic()
+	s.ephemeralPublic()
 
 	// Client and server must exchange ephemeral public keys
-	c.EphemeralSharedKey = s.EphemeralPublicKey
-	s.EphemeralSharedKey = c.EphemeralPublicKey
+	c.ephemeralSharedKey = s.ephemeralPublicKey
+	s.ephemeralSharedKey = c.ephemeralPublicKey
 
-	s.PremasterSecret()
-	c.PremasterSecret()
+	s.premasterSecret()
+	c.premasterSecret()
 
 	// Client must generate proof first
-	cProof, cErr := c.ClientProof(c.EphemeralPublicKey, c.EphemeralSharedKey)
-	sProof, sErr := s.ServerProof(cProof, s.EphemeralSharedKey)
+	cProof, cErr := c.clientProof(c.ephemeralPublicKey, c.ephemeralSharedKey)
+	sProof, sErr := s.serverProof(cProof, s.ephemeralSharedKey)
 
 	assert.Equal(t, s.PremasterKey, c.PremasterKey)
 	assert.NoError(t, cErr)
@@ -139,17 +139,17 @@ func TestClientAndServerValidateProof(t *testing.T) {
 func TestClientCanEnrollWithServer(t *testing.T) {
 	s, _ := NewDefaultServer()
 	c, _ := NewDefaultClient("username", "password")
-	cr, _ := c.StartEnrollment()
+	uname, salt, v, _ := c.Enroll()
 
-	assert.True(t, s.ReceiveEnrollmentRequest(cr))
+	assert.True(t, s.ProcessEnroll(uname, salt, v))
 }
 
 func TestClientFailsToEnrollWithServer(t *testing.T) {
 	s, _ := NewDefaultServer()
 	c, _ := NewDefaultClient("", "password")
-	cr, _ := c.StartEnrollment()
+	uname, salt, v, _ := c.Enroll()
 
-	assert.False(t, s.ReceiveEnrollmentRequest(cr))
+	assert.False(t, s.ProcessEnroll(uname, salt, v))
 }
 
 func TestClientCanAuthenticateWithServer(t *testing.T) {
@@ -160,28 +160,26 @@ func TestClientCanAuthenticateWithServer(t *testing.T) {
 	c2, _ := NewDefaultClient("username", "password")
 
 	// Client must enroll with server before authentication
-	userCreds, _ := c.StartEnrollment()
+	_, salt, v, _ := c.Enroll()
 
 	// Client must submit username and public key to server
-	cr := c2.StartAuthentication()
+	uname, A := c2.Auth()
 
 	// Server must identify client and respond if valid.
-	// We assume userCreds has been retrieved from some persisted
-	// storage.
-	cr, err := s.ReceiveAuthenticationRequest(cr, userCreds)
+	B, salt2, err := s.ProcessAuth(uname, salt, A, v)
 	assert.NoError(t, err)
 
 	// Client must calculate session and key and provide proof
 	// of calculation
-	cr, err = c2.ProveIdentity(cr)
+	cp, err := c2.ProveIdentity(B, salt2)
 	assert.NoError(t, err)
 
 	// Server must validate client proof
-	cr, err = s.ReceiveIdentityProof(cr)
+	sp, err := s.ProcessProof(cp)
 	assert.NoError(t, err)
 
 	// Client must validate server proof
-	assert.True(t, c2.IsProofValid(cr.Proof))
+	assert.True(t, c2.IsProofValid(sp))
 }
 
 func TestClientFailsToAuthenticateWithIncorrectPassword(t *testing.T) {
@@ -190,24 +188,43 @@ func TestClientFailsToAuthenticateWithIncorrectPassword(t *testing.T) {
 	c2, _ := NewDefaultClient("username", "wrong-password")
 
 	// Client must enroll with server before authentication
-	userCreds, _ := c.StartEnrollment()
+	_, salt, v, _ := c.Enroll()
 
 	// Client must submit username and public key to server
-	cr := c2.StartAuthentication()
+	uname, A := c2.Auth()
 
 	// Server must identify client and respond if valid.
-	// We assume userCreds has been retrieved from some persisted
-	// storage.
-	cr, err := s.ReceiveAuthenticationRequest(cr, userCreds)
+	B, salt2, err := s.ProcessAuth(uname, salt, A, v)
 	assert.NoError(t, err)
 
 	// Client must calculate session and key and provide proof
 	// of calculation
-	cr, err = c2.ProveIdentity(cr)
+	cp, err := c2.ProveIdentity(B, salt2)
 	assert.NoError(t, err)
 
 	// Server must invalidate client proof
-	cr, err = s.ReceiveIdentityProof(cr)
+	sp, err := s.ProcessProof(cp)
 	assert.EqualError(t, err, "invalid client proof received")
-	assert.Nil(t, cr.Proof)
+	assert.Equal(t, sp, &big.Int{})
+}
+
+func TestAuthWithSHA512(t *testing.T) {
+	g, _ := NewGroup(Group8192)
+	s, _ := NewServer(crypto.SHA512, g)
+	// Separate clients are used as auth flow from a client that
+	// did not perform enrollment should succeedseparate client
+	c, _ := NewClient(crypto.SHA512, g, "janedoe", "1ee2f02acdb70f1797db")
+	c2, _ := NewClient(crypto.SHA512, g, "janedoe", "1ee2f02acdb70f1797db")
+
+	_, salt, v, _ := c.Enroll()
+	uname, A := c2.Auth()
+	B, salt2, err := s.ProcessAuth(uname, salt, A, v)
+	assert.NoError(t, err)
+
+	cp, err := c2.ProveIdentity(B, salt2)
+	assert.NoError(t, err)
+
+	sp, err := s.ProcessProof(cp)
+	assert.NoError(t, err)
+	assert.True(t, c2.IsProofValid(sp))
 }

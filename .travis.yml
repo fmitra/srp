@@ -4,29 +4,13 @@ language: go
 go:
   - "1.11"
 
-go_import_path: github.com/fmitra/auth-gate
-
-services:
-  - docker
-
-before_script:
-  - sudo /etc/init.d/postgresql stop
+go_import_path: github.com/fmitra/srp
 
 jobs:
   include:
     - stage: test
       script:
-        - make develop
         - make ci_dependencies
-        - docker-compose up -d
         - make test_and_lint
       after_success:
         - bash <(curl -s https://codecov.io/bash)
-    - stage: build
-      if: tag =~ ^v
-      script:
-        - export REPO=fmitra/auth-gate
-        - docker login -u $DOCKER_USER -p $DOCKER_PASS
-        - docker build . -f Dockerfile -t $REPO
-        - docker tag $REPO $REPO:$TRAVIS_TAG
-        - docker push $REPO

@@ -10,16 +10,16 @@ import (
 
 func TestEphemeralPublicKeyRequiresInitializedServer(t *testing.T) {
 	s := &Server{}
-	_, err := s.EphemeralPublic()
+	_, err := s.ephemeralPublic()
 	assert.EqualError(t, err, "srp.Group not initialized")
 }
 
 func TestCreatesEphemeralPublicKey(t *testing.T) {
 	srp, _ := NewDefaultSRP()
 	srp.Secret = big.NewInt(1234567789000000)
-	srp.EphemeralPrivateKey = big.NewInt(1234577890000000000)
+	srp.ephemeralPrivateKey = big.NewInt(1234577890000000000)
 	server := &Server{SRP: *srp}
-	A, err := server.EphemeralPublic()
+	A, err := server.ephemeralPublic()
 	pubHex := "0x7974ccd2f8948e1de2667f9fa367753ecdacd0618177bb867928f2cd99a5" +
 		"e27ad0d5d65578af2c39e40a6c98dbe76ff37754ab1d7e12b7b56cb3bc1259348f8e" +
 		"b1f62e796b04db57f5d9d038124f806457bd76922e6fc5befd31951876e379e0ef2f" +
@@ -38,7 +38,7 @@ func TestCreatesEphemeralPublicKey(t *testing.T) {
 		"690c596f60de"
 	pub, _ := new(big.Int).SetString(pubHex, 0)
 	assert.NoError(t, err)
-	assert.Equal(t, server.EphemeralPublicKey, A)
+	assert.Equal(t, server.ephemeralPublicKey, A)
 	assert.Equal(t, A, pub)
 }
 
@@ -50,37 +50,37 @@ func TestCreatesDefaultServer(t *testing.T) {
 
 func TestServerPremasterSecretRequiresInitializedServer(t *testing.T) {
 	server := &Server{}
-	_, err := server.PremasterSecret()
+	_, err := server.premasterSecret()
 	assert.EqualError(t, err, "srp.Group not initialized")
 
 	srp, _ := NewDefaultSRP()
 	server = &Server{SRP: *srp}
-	_, err = server.PremasterSecret()
+	_, err = server.premasterSecret()
 	assert.EqualError(t, err, "shared keys A/B not calculated")
 
 	server, _ = NewDefaultServer()
-	server.EphemeralSharedKey = big.NewInt(20)
-	server.EphemeralPublicKey = big.NewInt(21)
+	server.ephemeralSharedKey = big.NewInt(20)
+	server.ephemeralPublicKey = big.NewInt(21)
 	server.N = big.NewInt(2)
-	_, err = server.PremasterSecret()
+	_, err = server.premasterSecret()
 	assert.EqualError(t, err, "received invalid public key, key % N cannot be 0")
 
 	server, _ = NewDefaultServer()
-	server.EphemeralSharedKey = big.NewInt(20)
-	server.EphemeralPublicKey = big.NewInt(21)
+	server.ephemeralSharedKey = big.NewInt(20)
+	server.ephemeralPublicKey = big.NewInt(21)
 	server.N = big.NewInt(3)
-	_, err = server.PremasterSecret()
+	_, err = server.premasterSecret()
 	assert.EqualError(t, err, "generated invalid public key, key % N cannot be 0")
 }
 
 func TestServerCalculatesPremasterSecret(t *testing.T) {
 	srp, _ := NewDefaultSRP()
 	srp.Secret = big.NewInt(1234567789000000)
-	srp.EphemeralPrivateKey = big.NewInt(1234577890000000000)
+	srp.ephemeralPrivateKey = big.NewInt(1234577890000000000)
 	server := &Server{SRP: *srp}
 
-	server.EphemeralPublic()
-	server.EphemeralSharedKey = big.NewInt(1234577890000000000)
+	server.ephemeralPublic()
+	server.ephemeralSharedKey = big.NewInt(1234577890000000000)
 
 	pHex := "0x184c69c549a5b1b357631c996b214a329a3fabeabbef9565b345d63d9fd2d932" +
 		"659c8d3065af73aaa9dbc422063a2450fac3732eb5e3a033514c39ac23d3eec6ac041d" +
@@ -99,7 +99,7 @@ func TestServerCalculatesPremasterSecret(t *testing.T) {
 		"84cffca95f2727532799d2d9f09c822f59c7ade49adc29d243"
 	key, _ := new(big.Int).SetString(pHex, 0)
 
-	pms, err := server.PremasterSecret()
+	pms, err := server.premasterSecret()
 	assert.NoError(t, err)
 	assert.Equal(t, pms, server.PremasterKey)
 	assert.Equal(t, pms, key)
@@ -108,16 +108,16 @@ func TestServerCalculatesPremasterSecret(t *testing.T) {
 func TestServerCalculatesProofOfKey(t *testing.T) {
 	server, _ := NewDefaultServer()
 	server.Secret = big.NewInt(1234567789000000)
-	server.EphemeralPrivateKey = big.NewInt(1234577890000000000)
-	server.EphemeralSharedKey = big.NewInt(1234577890000000000)
-	server.EphemeralPublic()
-	server.PremasterSecret()
+	server.ephemeralPrivateKey = big.NewInt(1234577890000000000)
+	server.ephemeralSharedKey = big.NewInt(1234577890000000000)
+	server.ephemeralPublic()
+	server.premasterSecret()
 
 	pHex := "0xbf79e5d42a00bd22b46c4c5792c553697128247ebf13a4487104d3cc470cab73"
 	pInt, _ := new(big.Int).SetString(pHex, 0)
 
 	clientProof := big.NewInt(12000000000)
-	p, err := server.ServerProof(clientProof, server.EphemeralSharedKey)
+	p, err := server.serverProof(clientProof, server.ephemeralSharedKey)
 	assert.NoError(t, err)
 	assert.Equal(t, p, pInt)
 }
