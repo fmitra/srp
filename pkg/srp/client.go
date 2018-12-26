@@ -158,18 +158,60 @@ func (c *Client) IsProofValid(i *big.Int) bool {
 	return isValid
 }
 
-// RequestEnrollment prepares an enrollment payload for an SRP server.
+// StartEnrollment prepares an enrollment payload for an SRP server.
 // We expect enrollment payload to be persisted on the server for future
 // authentication.
-func (c *Client) RequestEnrollment() {
-	// TODO
+func (c *Client) StartEnrollment() (*Credentials, error) {
+	c.Salt()
+	c.LongTermSecret()
+	v, err := c.Verifier()
+	if err != nil {
+		return &Credentials{}, err
+	}
+
+	r := &Credentials{
+		Username: c.I,
+		Salt: c.S,
+		Verifier: v,
+	}
+	return r, nil
 }
 
-// RequestAuthentication prepares an authentication payload for an SRP server.
+// StartAuthentication prepares an authentication payload for an SRP server.
 // We expect a Client to have already completed a RequestEnrollment prior to
 // submitting an authentication request.
-func (c *Client) RequestAuthentication() {
-	// TODO
+func (c *Client) StartAuthentication() *Credentials {
+	return &Credentials{
+		Username: c.I,
+		EphemeralPublicKey: c.EphemeralPublicKey,
+	}
+}
+
+// ProveIdentity accepts a SRP Server's authentication response and attempts
+// to prove Client authentication with the Client's proof of key.
+func (c *Client) ProveIdentity(cr *Credentials) (*Credentials, error) {
+	pk := big.Int{}
+	if pk.Mod(cr.EphemeralPublicKey, c.N); pk.Sign() == 0 {
+		return &Credentials{}, errors.New("client public key % N cannot be 0")
+	}
+
+	c.EphemeralSharedKey = cr.EphemeralPublicKey
+	c.S = cr.Salt
+
+	_, err := c.PremasterSecret()
+	if err != nil {
+		return &Credentials{}, err
+	}
+
+	p, err := c.ClientProof(c.EphemeralPublicKey, c.EphemeralSharedKey)
+	if err != nil {
+		return &Credentials{}, err
+	}
+
+	r := &Credentials{
+		Proof: p,
+	}
+	return r, nil
 }
 
 // NewDefaultClient returns an SRP server preconfigured for parameters

@@ -135,3 +135,79 @@ func TestClientAndServerValidateProof(t *testing.T) {
 	assert.True(t, c.IsProofValid(sProof))
 	assert.True(t, s.IsProofValid(cProof))
 }
+
+func TestClientCanEnrollWithServer(t *testing.T) {
+	s, _ := NewDefaultServer()
+	c, _ := NewDefaultClient("username", "password")
+	cr, _ := c.StartEnrollment()
+
+	assert.True(t, s.ReceiveEnrollmentRequest(cr))
+}
+
+func TestClientFailsToEnrollWithServer(t *testing.T) {
+	s, _ := NewDefaultServer()
+	c, _ := NewDefaultClient("", "password")
+	cr, _ := c.StartEnrollment()
+
+	assert.False(t, s.ReceiveEnrollmentRequest(cr))
+}
+
+func TestClientCanAuthenticateWithServer(t *testing.T) {
+	s, _ := NewDefaultServer()
+	// Separate clients are used as auth flow from a client that
+	// did not perform enrollment should succeedseparate client
+	c, _ := NewDefaultClient("username", "password")
+	c2, _ := NewDefaultClient("username", "password")
+
+	// Client must enroll with server before authentication
+	userCreds, _ := c.StartEnrollment()
+
+	// Client must submit username and public key to server
+	cr := c2.StartAuthentication()
+
+	// Server must identify client and respond if valid.
+	// We assume userCreds has been retrieved from some persisted
+	// storage.
+	cr, err := s.ReceiveAuthenticationRequest(cr, userCreds)
+	assert.NoError(t, err)
+
+	// Client must calculate session and key and provide proof
+	// of calculation
+	cr, err = c2.ProveIdentity(cr)
+	assert.NoError(t, err)
+
+	// Server must validate client proof
+	cr, err = s.ReceiveIdentityProof(cr)
+	assert.NoError(t, err)
+
+	// Client must validate server proof
+	assert.True(t, c2.IsProofValid(cr.Proof))
+}
+
+func TestClientFailsToAuthenticateWithIncorrectPassword(t *testing.T) {
+	s, _ := NewDefaultServer()
+	c, _ := NewDefaultClient("username", "password")
+	c2, _ := NewDefaultClient("username", "wrong-password")
+
+	// Client must enroll with server before authentication
+	userCreds, _ := c.StartEnrollment()
+
+	// Client must submit username and public key to server
+	cr := c2.StartAuthentication()
+
+	// Server must identify client and respond if valid.
+	// We assume userCreds has been retrieved from some persisted
+	// storage.
+	cr, err := s.ReceiveAuthenticationRequest(cr, userCreds)
+	assert.NoError(t, err)
+
+	// Client must calculate session and key and provide proof
+	// of calculation
+	cr, err = c2.ProveIdentity(cr)
+	assert.NoError(t, err)
+
+	// Server must invalidate client proof
+	cr, err = s.ReceiveIdentityProof(cr)
+	assert.EqualError(t, err, "invalid client proof received")
+	assert.Nil(t, cr.Proof)
+}

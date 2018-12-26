@@ -113,15 +113,27 @@ type SRPClient interface {
 	LongTermSecret() (*big.Int, error)
 	Verifier() (*big.Int, error)
 	Salt() string
-	RequestEnrollment()
-	RequestAuthentication()
+	StartEnrollment() (*Credentials, error)
+	StartAuthentication() (*Credentials, error)
+	ProveIdentity(cr *Credentials) (*Credentials, error)
 }
 
 // SRPServer is an interface to support client request validation.
 type SRPServer interface {
 	SRPCore
-	ReceiveEnrollmentRequest()
-	ReceiveAuthenticationRequest()
+	ReceiveEnrollmentRequest(cr *Credentials) (*Credentials, error)
+	ReceiveAuthenticationRequest(cr *Credentials) (*Credentials, error)
+	ReceiveIdentityProof(cr *Credentials) (*Credentials, error)
+}
+
+// Credentials represents values that may be transmitted between an SRP Client
+// and server during enrollment or authentication.
+type Credentials struct {
+	Username string
+	Salt string
+	Verifier *big.Int
+	Proof *big.Int
+	EphemeralPublicKey *big.Int
 }
 
 // SRP represents the main parameters used in calculating a

@@ -80,14 +80,70 @@ func (s *Server) IsProofValid(i *big.Int) bool {
 }
 
 // ReceiveEnrollmentRequest acknowledges an enrollment payload from an SRP Client.
-func (s *Server) ReceiveEnrollmentRequest() {
-	// TODO
+// It returns true if valid credentials have been submitted.
+func (s *Server) ReceiveEnrollmentRequest(cr *Credentials) bool {
+	if cr.Username == "" || cr.Salt == "" || cr.Verifier == nil {
+		return false
+	}
+
+	s.I = cr.Username
+	s.S = cr.Salt
+	s.Secret = cr.Verifier
+
+	return true
 }
 
 // ReceiveAuthenticationRequest ackwnowledges an authentication request from a
-// pre-enrolled SRP Client.
-func (s *Server) ReceiveAuthenticationRequest() {
-	// TODO
+// pre-enrolled SRP Client. Credentials cr1, should be received from the SRP client.
+// cr2 should be retrieved from some secure persisted storage prior to this call.
+// Retreival of cr2 is outside the scope of this package.
+func (s *Server) ReceiveAuthenticationRequest(cr1, cr2 *Credentials) (*Credentials, error) {
+	if cr1.Username != cr2.Username {
+		return &Credentials{}, errors.New("invalid username supplied")
+	}
+
+	s.I = cr1.Username
+	s.EphemeralSharedKey = cr1.EphemeralPublicKey
+	s.S = cr2.Salt
+	s.Secret = cr2.Verifier
+
+	pk := big.Int{}
+	if pk.Mod(cr1.EphemeralPublicKey, s.N); pk.Sign() == 0 {
+		return &Credentials{}, errors.New("client public key % N cannot be 0")
+	}
+
+	_, err := s.EphemeralPublic()
+	if err != nil {
+		return &Credentials{}, err
+	}
+
+	_, err = s.PremasterSecret()
+	if err != nil {
+		return &Credentials{}, err
+	}
+
+	r := &Credentials{
+		EphemeralPublicKey: s.EphemeralPublicKey,
+		Salt: s.S,
+	}
+	return r, nil
+}
+
+// ReceiveIdentityProof receives and validates proof from an SRP Client.
+func (s *Server) ReceiveIdentityProof(cr *Credentials) (*Credentials, error) {
+	p, err := s.ServerProof(cr.Proof, s.EphemeralSharedKey)
+	if err != nil {
+		return &Credentials{}, err
+	}
+
+	if !s.IsProofValid(cr.Proof) {
+		return &Credentials{}, errors.New("invalid client proof received")
+	}
+
+	r := &Credentials{
+		Proof: p,
+	}
+	return r, nil
 }
 
 // NewDefaultServer returns an SRP server preconfigured for parameters
