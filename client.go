@@ -54,11 +54,7 @@ func (c *Client) ProveIdentity(A *big.Int, s string) (*big.Int, error) {
 		return &big.Int{}, err
 	}
 
-	p, err := c.clientProof(c.ephemeralPublicKey, c.ephemeralSharedKey)
-	if err != nil {
-		return &big.Int{}, err
-	}
-
+	p, _ := c.clientProof(c.ephemeralPublicKey, c.ephemeralSharedKey)
 	return p, nil
 }
 

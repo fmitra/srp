@@ -75,6 +75,12 @@ func TestServerClientCreatesMatchingScramblingParameter(t *testing.T) {
 	assert.Equal(t, u1, u2)
 }
 
+func TestCannotCreatSRPWithBadGroup(t *testing.T) {
+	_, err := NewSRP(crypto.SHA512, &Group{})
+	errMsg := "srp.Group not initialized - invalid prime value provided"
+	assert.EqualError(t, err, errMsg)
+}
+
 func TestCreatesDefaultSRPWithSHA256(t *testing.T) {
 	srp, err := NewDefaultSRP()
 	assert.NoError(t, err)
@@ -134,6 +140,18 @@ func TestClientAndServerValidateProof(t *testing.T) {
 	assert.NoError(t, sErr)
 	assert.True(t, c.IsProofValid(sProof))
 	assert.True(t, s.IsProofValid(cProof))
+}
+
+func TestServerCannotCreateProofWithoutKey(t *testing.T) {
+	s, _ := NewDefaultServer()
+	_, err := s.serverProof(&big.Int{}, &big.Int{})
+	assert.EqualError(t, err, "premaster key required for calculation")
+}
+
+func TestClientCannotCreateProofWithNilClientProof(t *testing.T) {
+	c, _ := NewDefaultClient("username", "password")
+	_, err := c.clientProof(&big.Int{}, &big.Int{})
+	assert.EqualError(t, err, "premaster key required for calculation")
 }
 
 func TestClientCanEnrollWithServer(t *testing.T) {

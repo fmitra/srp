@@ -14,6 +14,20 @@ func TestEphemeralPublicKeyRequiresInitializedServer(t *testing.T) {
 	assert.EqualError(t, err, "srp.Group not initialized")
 }
 
+func TestFailsAuthForModuloZeroError(t *testing.T) {
+	s, _ := NewDefaultServer()
+	s.N = big.NewInt(2)
+	_, _, err := s.ProcessAuth("username", "salt", big.NewInt(20), big.NewInt(2))
+	assert.EqualError(t, err, "key % N cannot be 0")
+}
+
+func TestFailsAuthForGroupError(t *testing.T) {
+	s, _ := NewDefaultServer()
+	s.G = nil
+	_, _, err := s.ProcessAuth("username", "salt", big.NewInt(20), big.NewInt(2))
+	assert.EqualError(t, err, "srp.Group not initialized")
+}
+
 func TestCreatesEphemeralPublicKey(t *testing.T) {
 	srp, _ := NewDefaultSRP()
 	srp.Secret = big.NewInt(1234567789000000)
@@ -120,4 +134,21 @@ func TestServerCalculatesProofOfKey(t *testing.T) {
 	p, err := server.serverProof(clientProof, server.ephemeralSharedKey)
 	assert.NoError(t, err)
 	assert.Equal(t, p, pInt)
+}
+
+func TestServerFailsToCalculateProofWithMissingKey(t *testing.T) {
+	server, _ := NewDefaultServer()
+	server.Secret = big.NewInt(1234567789000000)
+	server.ephemeralPrivateKey = big.NewInt(1234577890000000000)
+	server.ephemeralSharedKey = big.NewInt(1234577890000000000)
+	server.ephemeralPublic()
+	clientProof := big.NewInt(12000000000)
+	_, err := server.serverProof(clientProof, server.ephemeralSharedKey)
+	assert.EqualError(t, err, "premaster key required for calculation")
+}
+
+func TestReturnsEmptyServerWithInvalidGroup(t *testing.T) {
+	_, err := NewServer(crypto.SHA512, &Group{})
+	errMsg := "srp.Group not initialized - invalid prime value provided"
+	assert.EqualError(t, err, errMsg)
 }

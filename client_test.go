@@ -38,6 +38,16 @@ func TestSecretRequiresInitializedClient(t *testing.T) {
 	}
 	_, err = c.longTermSecret()
 	assert.EqualError(t, err, "salt, username, and password must be initialized")
+
+	c = &Client{
+		password: "password",
+		SRP: SRP{
+			S: "random-salt",
+			I: "username",
+		},
+	}
+	_, err = c.longTermSecret()
+	assert.EqualError(t, err, "hash not initialized")
 }
 
 func TestCreatesSecret(t *testing.T) {
@@ -178,6 +188,14 @@ func TestCreatesEphemeralPublicKeys(t *testing.T) {
 	assert.Equal(t, A, pub)
 }
 
+func TestReturnsErrorWhenCreatingClient(t *testing.T) {
+	username := "jane"
+	password := "janedoe"
+	_, err := NewClient(crypto.SHA512, &Group{}, username, password)
+	errMsg := "srp.Group not initialized - invalid prime value provided"
+	assert.EqualError(t, err, errMsg)
+}
+
 func TestCreatesDefaultClient(t *testing.T) {
 	username := "jane"
 	password := "janedoe"
@@ -215,6 +233,17 @@ func TestClientCalculatesPremasterSecret(t *testing.T) {
 	assert.Equal(t, pms, key)
 }
 
+func TestClientCalculatesKForPremasterSecret(t *testing.T) {
+	c, _ := NewDefaultClient("username", "password")
+	c.ephemeralPrivateKey = big.NewInt(1234577890000000000)
+	c.ephemeralSharedKey = big.NewInt(1234599789000000000)
+	c.ephemeralPublicKey = big.NewInt(1234599788000000000)
+	c.S = "123459978900000022"
+	c.k = nil
+	_, err := c.premasterSecret()
+	assert.NoError(t, err)
+}
+
 func TestClientPremasterSecretRequiresInitializedServer(t *testing.T) {
 	c := &Client{}
 	_, err := c.premasterSecret()
@@ -236,6 +265,21 @@ func TestClientPremasterSecretRequiresInitializedServer(t *testing.T) {
 	c.ephemeralPublicKey = big.NewInt(21)
 	c.N = big.NewInt(3)
 	_, err = c.premasterSecret()
+	assert.EqualError(t, err, "key % N cannot be 0")
+}
+
+func TestClientFailsToProveIdentityForModuloZeroError(t *testing.T) {
+	c, _ := NewDefaultClient("username", "password")
+	pubKey := big.NewInt(20)
+	c.N = big.NewInt(2)
+	_, err := c.ProveIdentity(pubKey, "")
+	assert.EqualError(t, err, "key % N cannot be 0")
+}
+
+func TestClientFailsToProveIdentityForPremasterCalcError(t *testing.T) {
+	c, _ := NewDefaultClient("username", "password")
+	c.ephemeralPublicKey = &big.Int{}
+	_, err := c.ProveIdentity(big.NewInt(123456890000000007), "")
 	assert.EqualError(t, err, "key % N cannot be 0")
 }
 
