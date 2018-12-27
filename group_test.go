@@ -35,7 +35,7 @@ func TestErrorForInvalidPrimeHexConversion(t *testing.T) {
 	assert.EqualError(t, err, "invalid prime value provided")
 }
 
-func TestErrorForInvalidRootPrimative(t *testing.T) {
+func TestErrorForInvalidRootPrimitive(t *testing.T) {
 	_, err := NewGroup("invalid:prime-as-hex")
-	assert.EqualError(t, err, "invalid primative root provided")
+	assert.EqualError(t, err, "invalid primitive root provided")
 }

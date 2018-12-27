@@ -24,9 +24,9 @@ const (
 	// ErrInvalidPrime is returned when a Group is created with an invalid prime
 	// value.
 	ErrInvalidPrime = Error("invalid prime value provided")
-	// ErrInvalidPrimativeRoot is returned when a Group is created with an invalid
-	// primative root.
-	ErrInvalidPrimativeRoot = Error("invalid primative root provided")
+	// ErrInvalidPrimitiveRoot is returned when a Group is created with an invalid
+	// primitive root.
+	ErrInvalidPrimitiveRoot = Error("invalid primitive root provided")
 )
 
 // Error represents an SRP error

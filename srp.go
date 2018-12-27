@@ -6,7 +6,7 @@ demonstrates to a server that they know the password without sending the passwor
 or any other information from which a password can be inferred.
 
 The goal of SRP is for both client and server to generate the same session key (K),
-which they prove by sharing a hash (M) of several known paramters and attempting to
+which they prove by sharing a hash (M) of several known parameters and attempting to
 replicate the value. Validating the value of M proves that the server and client
 are each aware of their long term secrets x (client secret) and v (server secret)
 
@@ -30,7 +30,7 @@ S: Server authenticating the client
 
 Key
 
-N, g: Group parameters (a large prime N, and a primative root of N)
+N, g: Group parameters (a large prime N, and a primitive root of N)
 I: An identifying username belonging to C
 p: A password belonging to C
 s: A salt belonging to C
@@ -115,7 +115,7 @@ type AuthServer interface {
 type SRP struct {
 	// N is a large prime, referred to in RFC 5054 as N.
 	N *big.Int
-	// G is a primative root of N, referred to in RFC 5054 as g.
+	// G is a primitive root of N, referred to in RFC 5054 as g.
 	G *big.Int
 	// K is a multiplier param, referred to in RFC 5054 as k.
 	k *big.Int
@@ -175,7 +175,7 @@ func (s *SRP) multiplierParam() (*big.Int, error) {
 	return s.k, nil
 }
 
-// scramblingParam returns a scrambling paramter U.
+// scramblingParam returns a scrambling parameter U.
 // RFC 5054 2.5.3 Defines U as SHA1(A | B)
 func (s *SRP) scramblingParam(a, b *big.Int) *big.Int {
 	h := s.H.New()
