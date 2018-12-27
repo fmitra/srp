@@ -1,7 +1,6 @@
 package srp
 
 import (
-	"errors"
 	"math/big"
 	"strings"
 )
@@ -119,7 +118,7 @@ type Group struct {
 func (g *Group) CalcN() (*big.Int, error) {
 	N, ok := new(big.Int).SetString(g.Hex, 0)
 	if !ok {
-		return big.NewInt(0), errors.New("invalid prime value provided")
+		return big.NewInt(0), ErrInvalidPrime
 	}
 
 	g.N = N
@@ -134,7 +133,7 @@ func NewGroup(s string) (*Group, error) {
 	hex := v[1]
 	g, ok := new(big.Int).SetString(v[0], 10)
 	if !ok {
-		return &Group{}, errors.New("invalid primative root provided")
+		return &Group{}, ErrInvalidPrimativeRoot
 	}
 
 	group := &Group{

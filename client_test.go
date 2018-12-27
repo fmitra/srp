@@ -229,14 +229,14 @@ func TestClientPremasterSecretRequiresInitializedServer(t *testing.T) {
 	c.ephemeralPublicKey = big.NewInt(21)
 	c.N = big.NewInt(2)
 	_, err = c.premasterSecret()
-	assert.EqualError(t, err, "received invalid public key, key % N cannot be 0")
+	assert.EqualError(t, err, "key % N cannot be 0")
 
 	c, _ = NewDefaultClient("username", "password")
 	c.ephemeralSharedKey = big.NewInt(20)
 	c.ephemeralPublicKey = big.NewInt(21)
 	c.N = big.NewInt(3)
 	_, err = c.premasterSecret()
-	assert.EqualError(t, err, "generated invalid public key, key % N cannot be 0")
+	assert.EqualError(t, err, "key % N cannot be 0")
 }
 
 func TestClientCalculatesProofOfKey(t *testing.T) {

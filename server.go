@@ -2,7 +2,6 @@ package srp
 
 import (
 	"crypto"
-	"errors"
 	"math/big"
 )
 
@@ -38,7 +37,7 @@ func (s *Server) ProcessAuth(u, sa string, A, v *big.Int) (*big.Int, string, err
 
 	pk := big.Int{}
 	if pk.Mod(A, s.N); pk.Sign() == 0 {
-		return &big.Int{}, "", errors.New("client public key % N cannot be 0")
+		return &big.Int{}, "", ErrPublicKeyModuloZero
 	}
 
 	_, err := s.ephemeralPublic()
@@ -62,7 +61,7 @@ func (s *Server) ProcessProof(cp *big.Int) (*big.Int, error) {
 	}
 
 	if !s.IsProofValid(cp) {
-		return &big.Int{}, errors.New("invalid client proof received")
+		return &big.Int{}, ErrBadClientProof
 	}
 
 	return p, nil
@@ -79,7 +78,7 @@ func (s *Server) IsProofValid(i *big.Int) bool {
 // RFC 5054 Defines B as (k*v + g^b) % N
 func (s *Server) ephemeralPublic() (*big.Int, error) {
 	if s.G == nil || s.N == nil {
-		return nil, errors.New("srp.Group not initialized")
+		return nil, ErrNoGroupParams
 	}
 
 	// k*v
@@ -104,21 +103,21 @@ func (s *Server) ephemeralPublic() (*big.Int, error) {
 // RFC 5054 2.6 Defines the server secret as (A * v^u) ^ b % N
 func (s *Server) premasterSecret() (*big.Int, error) {
 	if s.G == nil || s.N == nil {
-		return nil, errors.New("srp.Group not initialized")
+		return nil, ErrNoGroupParams
 	}
 
 	if s.ephemeralPublicKey == nil || s.ephemeralSharedKey == nil {
-		return nil, errors.New("shared keys A/B not calculated")
+		return nil, ErrNoEphemeralKeys
 	}
 
 	ownKey := big.Int{}
 	if ownKey.Mod(s.ephemeralPublicKey, s.N); ownKey.Sign() == 0 {
-		return nil, errors.New("generated invalid public key, key % N cannot be 0")
+		return nil, ErrPublicKeyModuloZero
 	}
 
 	otherKey := big.Int{}
 	if otherKey.Mod(s.ephemeralSharedKey, s.N); otherKey.Sign() == 0 {
-		return nil, errors.New("received invalid public key, key % N cannot be 0")
+		return nil, ErrPublicKeyModuloZero
 	}
 
 	s.scramblingParam(s.ephemeralSharedKey, s.ephemeralPublicKey)

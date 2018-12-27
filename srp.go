@@ -88,7 +88,6 @@ package srp
 import (
 	"crypto"
 	rand "crypto/rand"
-	"errors"
 	"fmt"
 	"math/big"
 )
@@ -159,16 +158,12 @@ func (s *SRP) ephemeralPrivate() *big.Int {
 // multiplierParm returns a multipler paramenter K
 // RFC 5054 2.5.3 Defines K as SHA1(N | G)
 func (s *SRP) multiplierParam() (*big.Int, error) {
-	if s.N == nil {
-		return nil, errors.New("prime value not initialized")
-	}
-
-	if s.G == nil {
-		return nil, errors.New("primative root not initialized")
+	if s.N == nil || s.G == nil {
+		return nil, ErrNoGroupParams
 	}
 
 	if s.H == crypto.Hash(0) {
-		return nil, errors.New("hash not initialized")
+		return nil, ErrNoHash
 	}
 
 	h := s.H.New()
@@ -199,11 +194,11 @@ func (s *SRP) scramblingParam(a, b *big.Int) *big.Int {
 // RFC 2945 Defines the proof as H(A, client-proof, H(premaster-secret))
 func (s *SRP) serverProof(m, a *big.Int) (*big.Int, error) {
 	if s.PremasterKey == nil {
-		return nil, errors.New("premaster key required to calculate proof")
+		return nil, ErrNoPremasterKey
 	}
 
 	if m == nil || m == big.NewInt(0) {
-		return nil, errors.New("invalid client proof received")
+		return nil, ErrBadClientProof
 	}
 
 	proof := s.H.New()
@@ -226,7 +221,7 @@ func (s *SRP) serverProof(m, a *big.Int) (*big.Int, error) {
 // RFC 2945 Defines the proof as H(H(N) XOR H(g), H(I), s, A, B, H(premaster-secret))
 func (s *SRP) clientProof(a, b *big.Int) (*big.Int, error) {
 	if s.PremasterKey == nil {
-		return nil, errors.New("premaster key required to calculate proof")
+		return nil, ErrNoPremasterKey
 	}
 
 	// Client proof of key
@@ -267,7 +262,7 @@ func (s *SRP) clientProof(a, b *big.Int) (*big.Int, error) {
 func NewSRP(h crypto.Hash, g *Group) (*SRP, error) {
 	n, err := g.CalcN()
 	if err != nil {
-		return &SRP{}, fmt.Errorf("invalid srp.Group provided %s", err)
+		return &SRP{}, fmt.Errorf("%s - %s", ErrNoGroupParams, err)
 	}
 
 	srp := &SRP{

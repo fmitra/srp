@@ -37,11 +37,11 @@ func TestMultiplierParamRequiresInitializedSRP(t *testing.T) {
 	n, _ := group.CalcN()
 	srp := &SRP{}
 	_, err := srp.multiplierParam()
-	assert.EqualError(t, err, "prime value not initialized")
+	assert.EqualError(t, err, "srp.Group not initialized")
 
 	srp = &SRP{N: n}
 	_, err = srp.multiplierParam()
-	assert.EqualError(t, err, "primative root not initialized")
+	assert.EqualError(t, err, "srp.Group not initialized")
 
 	srp = &SRP{
 		N: n,

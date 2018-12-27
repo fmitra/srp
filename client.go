@@ -43,7 +43,7 @@ func (c *Client) Auth() (string, *big.Int) {
 func (c *Client) ProveIdentity(A *big.Int, s string) (*big.Int, error) {
 	pk := big.Int{}
 	if pk.Mod(A, c.N); pk.Sign() == 0 {
-		return &big.Int{}, errors.New("client public key % N cannot be 0")
+		return &big.Int{}, ErrPublicKeyModuloZero
 	}
 
 	c.ephemeralSharedKey = A
@@ -97,7 +97,7 @@ func (c *Client) longTermSecret() (*big.Int, error) {
 	}
 
 	if c.H == crypto.Hash(0) {
-		return nil, errors.New("hash not initialized")
+		return nil, ErrNoHash
 	}
 
 	iHasher := c.H.New()
@@ -125,12 +125,12 @@ func (c *Client) longTermSecret() (*big.Int, error) {
 // RFC 5054 2.5.3 Defines V as g^x % N
 func (c *Client) verifier() (*big.Int, error) {
 	if c.G == nil || c.N == nil {
-		return nil, errors.New("srp.Group not initialized")
+		return nil, ErrNoGroupParams
 	}
 
 	x, err := c.longTermSecret()
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate verifier - %s", err)
+		return nil, fmt.Errorf("%s - %s", ErrCalcVerifier, err)
 	}
 
 	v := &big.Int{}
@@ -142,7 +142,7 @@ func (c *Client) verifier() (*big.Int, error) {
 // RFC 5054 2.6 Defines A as g^a % N
 func (c *Client) ephemeralPublic() (*big.Int, error) {
 	if c.G == nil || c.N == nil {
-		return nil, errors.New("srp.Group not initialized")
+		return nil, ErrNoGroupParams
 	}
 
 	A := &big.Int{}
@@ -156,21 +156,21 @@ func (c *Client) ephemeralPublic() (*big.Int, error) {
 // RFC 5054 2.6 Defines the client secret as (B - (k * g^x))^(a + (u * x)) % N
 func (c *Client) premasterSecret() (*big.Int, error) {
 	if c.G == nil || c.N == nil {
-		return nil, errors.New("srp.Group not initialized")
+		return nil, ErrNoGroupParams
 	}
 
 	if c.ephemeralPublicKey == nil || c.ephemeralSharedKey == nil {
-		return nil, errors.New("shared keys A/B not calculated")
+		return nil, ErrNoEphemeralKeys
 	}
 
 	ownKey := big.Int{}
 	if ownKey.Mod(c.ephemeralPublicKey, c.N); ownKey.Sign() == 0 {
-		return nil, errors.New("generated invalid public key, key % N cannot be 0")
+		return nil, ErrPublicKeyModuloZero
 	}
 
 	otherKey := big.Int{}
 	if otherKey.Mod(c.ephemeralSharedKey, c.N); otherKey.Sign() == 0 {
-		return nil, errors.New("received invalid public key, key % N cannot be 0")
+		return nil, ErrPublicKeyModuloZero
 	}
 
 	if c.k == nil {
