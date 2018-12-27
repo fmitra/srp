@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/fmitra/srp.svg?branch=master)](https://travis-ci.org/fmitra/srp) [![Report Card](https://goreportcard.com/badge/github.com/fmitra/srp)](https://goreportcard.com/badge/github.com/fmitra/srp) [![codecov](https://codecov.io/gh/fmitra/srp/branch/master/graph/badge.svg)](https://codecov.io/gh/fmitra/srp)
+
 # srp
 
 A Go implementation of the Secure Remote Password Protocol (SRP)
