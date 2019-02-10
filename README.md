@@ -129,23 +129,30 @@ shared key as part of your authentication protocol.
 
 ## Test
 
-Tests rely on testify's assert library. Install it to run tests.
+Tests rely on testify's assert library. It should install automatically if this
+project is stored outside of your GOPATH. If it is inside GOPATH, you first need
+to enable module support.
 
 ```
-dep ensure -vendor-only -v
+export GO111MODULE=on
+```
 
+Run tests
+
+```
 make test
 ```
 
-Test caching is disable by default. run `make test_dev` to run tests with cache.
-
 ## Lint
 
-*golint* and *megacheck* are used in the linting toolset.
+*golangci-lint* is used for linting. To install (OSX)
 
 ```
-go get -v -u honnef.co/go/tools/cmd/megacheck
-go get -v -u golang.org/x/lint/golint
+brew install golangci/tap/golangci-lint
+```
 
+Run linter
+
+```
 make lint
 ```
