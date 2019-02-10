@@ -1,4 +1,3 @@
-// Package srp implements the Secure Remote Password Protocol (Version 6a)
 package srp
 
 import (
